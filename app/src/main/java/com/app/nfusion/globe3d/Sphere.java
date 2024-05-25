@@ -12,10 +12,12 @@ public class Sphere {
     private FloatBuffer vertexBuffer, texBuffer;
     private ShortBuffer indexBuffer;
 
-    private int program;
+    private int programEarth;
+    private int programCloud;
     private int positionHandler;
     private int textureCoordinateHandler;
-    private int textureUniformHandler;
+    private int earthTextureUniformHandler;
+    private int cloudTextureUniformHandler;
     private int matrixHandler;
     private int numIndices;
 
@@ -32,26 +34,46 @@ public class Sphere {
                         "  vTexCoord = aTexCoord;" +
                         "}";
 
-        String fragmentShaderCode =
+        String sphereFragmentShaderCode =
                 "precision mediump float;" +
-                        "uniform sampler2D uTexture;" +
+                        "uniform sampler2D uEarthTexture;" +
                         "varying vec2 vTexCoord;" +
                         "void main() {" +
-                        "  gl_FragColor = texture2D(uTexture, vTexCoord);" +
+                        "  gl_FragColor = texture2D(uEarthTexture, vTexCoord);" +
+                        "}";
+
+        String cloudFragmentShaderCode =
+                "precision mediump float;" +
+                        "uniform sampler2D uCloudTexture;" +
+                        "varying vec2 vTexCoord;" +
+                        "void main() {" +
+                        "  vec4 cloudColor = texture2D(uCloudTexture, vTexCoord);" +
+                        "  if (cloudColor.r < 0.1 && cloudColor.g < 0.1 && cloudColor.b < 0.1) {" +
+                        "    discard;" + // Discard fragments with black color in the cloud texture
+                        "  } else {" +
+                        "    gl_FragColor = cloudColor;" +
+                        "  }" +
                         "}";
 
         int vertexShader = loadShader(GLES32.GL_VERTEX_SHADER, vertexShaderCode);
-        int fragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, fragmentShaderCode);
+        int sphereFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, sphereFragmentShaderCode);
+        int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, cloudFragmentShaderCode);
 
-        program = GLES32.glCreateProgram();
-        GLES32.glAttachShader(program, vertexShader);
-        GLES32.glAttachShader(program, fragmentShader);
-        GLES32.glLinkProgram(program);
+        programEarth = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programEarth, vertexShader);
+        GLES32.glAttachShader(programEarth, sphereFragmentShader);
+        GLES32.glLinkProgram(programEarth);
 
-        positionHandler = GLES32.glGetAttribLocation(program, "aPosition");
-        textureCoordinateHandler = GLES32.glGetAttribLocation(program, "aTexCoord");
-        textureUniformHandler = GLES32.glGetUniformLocation(program, "uTexture");
-        matrixHandler = GLES32.glGetUniformLocation(program, "uMVPMatrix");
+        programCloud = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programCloud, vertexShader);
+        GLES32.glAttachShader(programCloud, cloudFragmentShader);
+        GLES32.glLinkProgram(programCloud);
+
+        positionHandler = GLES32.glGetAttribLocation(programEarth, "aPosition");
+        textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
+        earthTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthTexture");
+        cloudTextureUniformHandler = GLES32.glGetUniformLocation(programCloud, "uCloudTexture");
+        matrixHandler = GLES32.glGetUniformLocation(programEarth, "uMVPMatrix");
     }
 
     private int loadShader(int type, String shaderCode) {
@@ -123,8 +145,8 @@ public class Sphere {
         indexBuffer.put(indices).position(0);
     }
 
-    public void draw(int texture, float[] mvpMatrix) {
-        GLES32.glUseProgram(program);
+    public void drawEarth(int earthTexture, float[] mvpMatrix) {
+        GLES32.glUseProgram(programEarth);
 
         GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
         GLES32.glEnableVertexAttribArray(positionHandler);
@@ -133,8 +155,29 @@ public class Sphere {
         GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
 
         GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, texture);
-        GLES32.glUniform1i(textureUniformHandler, 0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
+        GLES32.glUniform1i(earthTextureUniformHandler, 0);
+
+        GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+    }
+
+    public void drawCloud(int cloudTexture, float[] mvpMatrix) {
+        GLES32.glUseProgram(programCloud);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
+        GLES32.glUniform1i(cloudTextureUniformHandler, 1);
 
         GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
 
@@ -144,3 +187,4 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
     }
 }
+

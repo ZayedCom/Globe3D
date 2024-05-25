@@ -13,6 +13,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private final Context context;
     private Sphere sphere;
     private int earthTexture;
+    private int cloudTexture;
     private final float[] rotationMatrix = new float[16];
     private final float[] viewMatrix = new float[16];
     private final float[] projectionMatrix = new float[16];
@@ -32,11 +33,14 @@ public class Renderer implements GLSurfaceView.Renderer {
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         GLES32.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES32.glEnable(GLES32.GL_DEPTH_TEST);
+        GLES32.glEnable(GLES32.GL_BLEND); // Enable blending for transparency
+        GLES32.glBlendFunc(GLES32.GL_SRC_ALPHA, GLES32.GL_ONE_MINUS_SRC_ALPHA); // Set blending function
 
         sphere = new Sphere();
         sphere.init();
 
         earthTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture);
+        cloudTexture = TextureHelper.loadTexture(context, R.drawable.earth_clouds);
     }
 
     @Override
@@ -59,7 +63,11 @@ public class Renderer implements GLSurfaceView.Renderer {
 
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, modelMatrix, 0);
 
-        sphere.draw(earthTexture, mvpMatrix);
+        // Draw clouds
+        sphere.drawCloud(cloudTexture, mvpMatrix);
+
+        // Draw earth with clouds
+        sphere.drawEarth(earthTexture, mvpMatrix);
     }
 
     @Override
