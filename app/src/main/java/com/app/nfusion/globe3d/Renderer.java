@@ -20,6 +20,8 @@ public class Renderer implements GLSurfaceView.Renderer {
     private final float[] modelMatrix = new float[16];
     private float angle;
     private float scale = 1.0f;
+    private static final float minScale = 0.5f;
+    private static final float maxScale = 2.0f;
 
     public Renderer(Context context) {
         this.context = context;
@@ -69,5 +71,10 @@ public class Renderer implements GLSurfaceView.Renderer {
 
     public void scaleSphere(float scaleFactor) {
         scale *= scaleFactor;
+        if (scale < minScale) {
+            scale = minScale;
+        } else if (scale > maxScale) {
+            scale = maxScale;
+        }
     }
 }
