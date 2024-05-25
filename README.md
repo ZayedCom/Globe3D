@@ -37,4 +37,5 @@ To run the demo:
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
 Zaid K. Al Qassar
-APP NFUSION © 2024
+
+APP NFUSION 2024
