@@ -24,7 +24,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private float moonAngle;
     private float zoomScale = 1.0f; // Zoom default scale
     private static final float minScale = 0.5f; // Zoom min scale
-    private static final float maxScale = 5.0f; // Zoom max scale
+    private static final float maxScale = 2.0f; // Zoom max scale
     private static final float moonOffset = 2.05f; // Offset for the Moon to be above the earth
     private static final float moonRotationSpeed = 0.5f; // Adjust this value for the Moon's rotation speed
     private static final float moonScaleFactor = 0.5f; // Adjust this factor as needed
