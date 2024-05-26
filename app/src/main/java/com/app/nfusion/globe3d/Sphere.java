@@ -25,34 +25,37 @@ public class Sphere {
     public void init() {
         generateSphere();
 
+        // Vertex shader code for rendering the sphere
         String vertexShaderCode =
-                "uniform mat4 uMVPMatrix;" +
-                        "attribute vec4 aPosition;" +
-                        "attribute vec2 aTexCoord;" +
-                        "varying vec2 vTexCoord;" +
+                "uniform mat4 uMVPMatrix;" +                                                            // Uniform matrix for model-view-projection transformation
+                        "attribute vec4 aPosition;" +                                                   // Attribute for vertex positions
+                        "attribute vec2 aTexCoord;" +                                                   // Attribute for texture coordinates
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to pass texture coordinates to fragment shader
                         "void main() {" +
-                        "  gl_Position = uMVPMatrix * aPosition;" +
-                        "  vTexCoord = aTexCoord;" +
+                        "  gl_Position = uMVPMatrix * aPosition;" +                                     // Calculate final position based on MVP matrix
+                        "  vTexCoord = aTexCoord;" +                                                    // Pass texture coordinates to the fragment shader
                         "}";
 
+// Fragment shader code for rendering the sphere
         String sphereFragmentShaderCode =
-                "precision mediump float;" +
-                        "uniform sampler2D uEarthTexture;" +
-                        "varying vec2 vTexCoord;" +
+                "precision mediump float;" +                                                            // Set floating-point precision
+                        "uniform sampler2D uEarthTexture;" +                                            // Uniform sampler for earth texture
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
                         "void main() {" +
-                        "  gl_FragColor = texture2D(uEarthTexture, vTexCoord);" +
+                        "  gl_FragColor = texture2D(uEarthTexture, vTexCoord);" +                       // Sample earth texture at given texture coordinates
                         "}";
 
+// Fragment shader code for rendering the moon with clouds
         String moonFragmentShaderCode =
-                "precision mediump float;" +
-                        "uniform sampler2D uCloudTexture;" +
-                        "varying vec2 vTexCoord;" +
+                "precision mediump float;" +                                                            // Set floating-point precision
+                        "uniform sampler2D uCloudTexture;" +                                            // Uniform sampler for cloud texture
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
                         "void main() {" +
-                        "  vec4 cloudColor = texture2D(uCloudTexture, vTexCoord);" +
+                        "  vec4 cloudColor = texture2D(uCloudTexture, vTexCoord);" +                    // Sample cloud texture at given texture coordinates
                         "  if (cloudColor.r < 0.1 && cloudColor.g < 0.1 && cloudColor.b < 0.1) {" +
-                        "    discard;" + // Discard fragments with black color in the cloud texture
+                        "    discard;" +                                                                // Discard fragments with black color in the cloud texture
                         "  } else {" +
-                        "    gl_FragColor = cloudColor;" +
+                        "    gl_FragColor = cloudColor;" +                                              // Set fragment color to cloud color if not discarded
                         "  }" +
                         "}";
 

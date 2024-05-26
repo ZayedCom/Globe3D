@@ -61,10 +61,10 @@ public class Renderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, javax.microedition.khronos.egl.EGLConfig config) {
-        GLES32.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        GLES32.glEnable(GLES32.GL_DEPTH_TEST);
-        GLES32.glEnable(GLES32.GL_BLEND); // Enable blending for transparency
-        GLES32.glBlendFunc(GLES32.GL_SRC_ALPHA, GLES32.GL_ONE_MINUS_SRC_ALPHA); // Set blending function
+        GLES32.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);        // Set the clear color to black with full opacity
+        GLES32.glEnable(GLES32.GL_DEPTH_TEST);                                    // Enable depth testing for accurate 3D rendering
+        GLES32.glEnable(GLES32.GL_BLEND);                                         // Enable blending for transparency effects
+        GLES32.glBlendFunc(GLES32.GL_SRC_ALPHA, GLES32.GL_ONE_MINUS_SRC_ALPHA);   // Set the blending function to use the source alpha value for transparency blending
 
         sphere = new Sphere();
         sphere.init();
