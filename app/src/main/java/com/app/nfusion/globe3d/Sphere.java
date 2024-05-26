@@ -13,14 +13,15 @@ public class Sphere {
     private ShortBuffer indexBuffer;
 
     private int programEarth;
-    private int programCloud;
+    private int programMoon;
     private int positionHandler;
     private int textureCoordinateHandler;
     private int earthTextureUniformHandler;
-    private int cloudTextureUniformHandler;
+    private int moonTextureUniformHandler;
     private int matrixHandler;
     private int numIndices;
 
+    // Initialize the sphere
     public void init() {
         generateSphere();
 
@@ -42,7 +43,7 @@ public class Sphere {
                         "  gl_FragColor = texture2D(uEarthTexture, vTexCoord);" +
                         "}";
 
-        String cloudFragmentShaderCode =
+        String moonFragmentShaderCode =
                 "precision mediump float;" +
                         "uniform sampler2D uCloudTexture;" +
                         "varying vec2 vTexCoord;" +
@@ -57,25 +58,26 @@ public class Sphere {
 
         int vertexShader = loadShader(GLES32.GL_VERTEX_SHADER, vertexShaderCode);
         int sphereFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, sphereFragmentShaderCode);
-        int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, cloudFragmentShaderCode);
+        int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, moonFragmentShaderCode);
 
         programEarth = GLES32.glCreateProgram();
         GLES32.glAttachShader(programEarth, vertexShader);
         GLES32.glAttachShader(programEarth, sphereFragmentShader);
         GLES32.glLinkProgram(programEarth);
 
-        programCloud = GLES32.glCreateProgram();
-        GLES32.glAttachShader(programCloud, vertexShader);
-        GLES32.glAttachShader(programCloud, cloudFragmentShader);
-        GLES32.glLinkProgram(programCloud);
+        programMoon = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programMoon, vertexShader);
+        GLES32.glAttachShader(programMoon, cloudFragmentShader);
+        GLES32.glLinkProgram(programMoon);
 
         positionHandler = GLES32.glGetAttribLocation(programEarth, "aPosition");
         textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
         earthTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthTexture");
-        cloudTextureUniformHandler = GLES32.glGetUniformLocation(programCloud, "uCloudTexture");
+        moonTextureUniformHandler = GLES32.glGetUniformLocation(programMoon, "uCloudTexture");
         matrixHandler = GLES32.glGetUniformLocation(programEarth, "uMVPMatrix");
     }
 
+    // Load a shader of the specified type with the given code
     private int loadShader(int type, String shaderCode) {
         int shader = GLES32.glCreateShader(type);
         GLES32.glShaderSource(shader, shaderCode);
@@ -145,6 +147,7 @@ public class Sphere {
         indexBuffer.put(indices).position(0);
     }
 
+    // Draw the Earth using the specified Earth texture and MVP matrix
     public void drawEarth(int earthTexture, float[] mvpMatrix) {
         GLES32.glUseProgram(programEarth);
 
@@ -166,8 +169,9 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
     }
 
-    public void drawCloud(int cloudTexture, float[] mvpMatrix) {
-        GLES32.glUseProgram(programCloud);
+    // Draw the Moon using the specified Moon texture and MVP matrix
+    public void drawMoon(int moonTexture, float[] mvpMatrix) {
+        GLES32.glUseProgram(programMoon);
 
         GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
         GLES32.glEnableVertexAttribArray(positionHandler);
@@ -176,8 +180,8 @@ public class Sphere {
         GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
 
         GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
-        GLES32.glUniform1i(cloudTextureUniformHandler, 1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
+        GLES32.glUniform1i(moonTextureUniformHandler, 1);
 
         GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
 
@@ -187,4 +191,3 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
     }
 }
-
