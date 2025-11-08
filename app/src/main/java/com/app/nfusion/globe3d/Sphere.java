@@ -14,14 +14,21 @@ public class Sphere {
 
     private int programEarth;
     private int programMoon;
+    private int programBackground;
+    private int programMotionBlur;
     private int positionHandler;
     private int textureCoordinateHandler;
     private int earthTextureUniformHandler;
     private int moonTextureUniformHandler;
+    private int backgroundTextureUniformHandler;
+    private int motionBlurTextureUniformHandler;
+    private int motionBlurIntensityHandler;
     private int matrixHandler;
+    private int matrixHandlerBackground;
+    private int matrixHandlerMotionBlur;
     private int numIndices;
 
-    // Initialize the sphere
+    // Initialize the sphere geometry, shaders, and OpenGL programs
     public void init() {
         generateSphere();
 
@@ -59,9 +66,32 @@ public class Sphere {
                         "  }" +
                         "}";
 
+        // Fragment shader code for rendering with motion blur effect
+        String motionBlurFragmentShaderCode =
+                "precision mediump float;" +                                                            // Set floating-point precision
+                        "uniform sampler2D uEarthTexture;" +                                            // Uniform sampler for texture
+                        "uniform float uBlurIntensity;" +                                              // Uniform for blur intensity control
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
+                        "void main() {" +
+                        "  vec4 color = texture2D(uEarthTexture, vTexCoord);" +                        // Sample original texture color at given texture coordinates
+                        "  vec2 center = vec2(0.5, 0.5);" +                                            // Calculate texture center point
+                        "  vec2 dir = normalize(vTexCoord - center);" +                                // Calculate direction vector from center to current coordinate
+                        "  float dist = distance(vTexCoord, center);" +                                 // Calculate distance from center for radial blur effect
+                        "  vec4 blurColor = vec4(0.0);" +                                               // Initialize blur color accumulator
+                        "  float samples = 8.0;" +                                                      // Number of samples for blur effect
+                        "  for (float i = 0.0; i < 8.0; i++) {" +                                      // Loop through samples to create blur streaks
+                        "    float offset = (i / samples) * uBlurIntensity * dist;" +                  // Calculate offset distance based on sample index and blur intensity
+                        "    vec2 sampleCoord = vTexCoord + dir * offset;" +                            // Calculate sample coordinate along radial direction
+                        "    blurColor += texture2D(uEarthTexture, sampleCoord);" +                     // Accumulate color from sampled texture coordinate
+                        "  }" +
+                        "  blurColor /= samples;" +                                                     // Average the accumulated blur color
+                        "  gl_FragColor = mix(color, blurColor, uBlurIntensity);" +                     // Blend original color with blurred color based on intensity
+                        "}";
+
         int vertexShader = loadShader(GLES32.GL_VERTEX_SHADER, vertexShaderCode);
         int sphereFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, sphereFragmentShaderCode);
         int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, moonFragmentShaderCode);
+        int motionBlurFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, motionBlurFragmentShaderCode);
 
         programEarth = GLES32.glCreateProgram();
         GLES32.glAttachShader(programEarth, vertexShader);
@@ -73,11 +103,26 @@ public class Sphere {
         GLES32.glAttachShader(programMoon, cloudFragmentShader);
         GLES32.glLinkProgram(programMoon);
 
+        programBackground = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programBackground, vertexShader);
+        GLES32.glAttachShader(programBackground, sphereFragmentShader);
+        GLES32.glLinkProgram(programBackground);
+
+        programMotionBlur = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programMotionBlur, vertexShader);
+        GLES32.glAttachShader(programMotionBlur, motionBlurFragmentShader);
+        GLES32.glLinkProgram(programMotionBlur);
+
         positionHandler = GLES32.glGetAttribLocation(programEarth, "aPosition");
         textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
         earthTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthTexture");
         moonTextureUniformHandler = GLES32.glGetUniformLocation(programMoon, "uCloudTexture");
+        backgroundTextureUniformHandler = GLES32.glGetUniformLocation(programBackground, "uEarthTexture");
+        motionBlurTextureUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uEarthTexture");
+        motionBlurIntensityHandler = GLES32.glGetUniformLocation(programMotionBlur, "uBlurIntensity");
         matrixHandler = GLES32.glGetUniformLocation(programEarth, "uMVPMatrix");
+        matrixHandlerBackground = GLES32.glGetUniformLocation(programBackground, "uMVPMatrix");
+        matrixHandlerMotionBlur = GLES32.glGetUniformLocation(programMotionBlur, "uMVPMatrix");
     }
 
     // Load a shader of the specified type with the given code
@@ -88,6 +133,7 @@ public class Sphere {
         return shader;
     }
 
+    // Generate sphere geometry with vertices, texture coordinates, and indices
     private void generateSphere() {
         int numVertices = (30 + 1) * (30 + 1);
         int numIndices = 6 * 30 * 30;
@@ -187,6 +233,78 @@ public class Sphere {
         GLES32.glUniform1i(moonTextureUniformHandler, 1);
 
         GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+    }
+
+    // Draw the background space texture as a large sphere with depth testing disabled
+    public void drawBackground(int backgroundTexture, float[] mvpMatrix) {
+        GLES32.glUseProgram(programBackground);
+        GLES32.glDisable(GLES32.GL_DEPTH_TEST);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE2);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, backgroundTexture);
+        GLES32.glUniform1i(backgroundTextureUniformHandler, 2);
+
+        GLES32.glUniformMatrix4fv(matrixHandlerBackground, 1, false, mvpMatrix, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+        GLES32.glEnable(GLES32.GL_DEPTH_TEST);
+    }
+
+    // Draw the Earth with motion blur effect using the motion blur shader program
+    public void drawEarthWithBlur(int earthTexture, float[] mvpMatrix, float blurIntensity) {
+        GLES32.glUseProgram(programMotionBlur);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
+        GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
+
+        GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
+
+        GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+    }
+
+    // Draw the Moon with motion blur effect using the motion blur shader program
+    public void drawMoonWithBlur(int moonTexture, float[] mvpMatrix, float blurIntensity) {
+        GLES32.glUseProgram(programMotionBlur);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
+        GLES32.glUniform1i(motionBlurTextureUniformHandler, 1);
+
+        GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
+
+        GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
 
         GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
 

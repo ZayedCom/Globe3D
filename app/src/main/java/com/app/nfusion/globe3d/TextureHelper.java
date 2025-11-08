@@ -8,6 +8,7 @@ import android.opengl.GLUtils;
 
 public class TextureHelper {
 
+    // Load a texture from a resource ID and return the OpenGL texture handle
     public static int loadTexture(Context context, int resourceId) {
         final int[] textureHandle = new int[1];
         GLES32.glGenTextures(1, textureHandle, 0);
