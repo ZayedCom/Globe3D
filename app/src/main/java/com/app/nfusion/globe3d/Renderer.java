@@ -14,6 +14,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int earthTexture;
     private int moonTexture;
     private int backgroundTexture;
+    private int cloudTexture;
     private final float[] mvpMatrix = new float[16];
     private final float[] earthRotationMatrix = new float[16];
     private final float[] earthViewMatrix = new float[16];
@@ -23,12 +24,15 @@ public class Renderer implements GLSurfaceView.Renderer {
     private final float[] moonModelMatrix = new float[16];
     private float earthAngle;
     private float moonAngle;
+    private float cloudAngle;
     private float zoomScale = 1.0f; // Zoom default scale
     private static final float minScale = 0.1f; // Zoom min scale
     private static final float maxScale = 5.0f; // Zoom max scale
     private static final float moonOffset = 8.0f; // Real scale distance: Moon is ~60 Earth radii away (scaled for visibility)
     private static final float moonRotationSpeed = 0.5f;
     private static final float moonScaleFactor = 0.27f; // Real scale: Moon diameter is ~27% of Earth's
+    private static final float cloudRotationSpeed = 0.7f; // Clouds rotate faster than Earth due to wind patterns
+    private static final float cloudAlpha = 0.5f; // Cloud transparency
     private volatile float cameraAzimuth = (float) Math.PI;
     private volatile float cameraElevation = 0.0f;
     private static final float baseCameraDistance = 3.0f;
@@ -57,6 +61,7 @@ public class Renderer implements GLSurfaceView.Renderer {
 
         updateEarthRotation();
         updateMoonRotation();
+        updateCloudRotation();
 
         if (isTransitioning) {
             updateTransition();
@@ -116,6 +121,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         earthTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture);
         moonTexture = TextureHelper.loadTexture(context, R.drawable.moon_texture);
         backgroundTexture = TextureHelper.loadTexture(context, R.drawable.milky_way);
+        cloudTexture = TextureHelper.loadTexture(context, R.drawable.earth_clouds);
     }
 
     // Update viewport and projection matrix when surface size changes
@@ -136,6 +142,12 @@ public class Renderer implements GLSurfaceView.Renderer {
     private void updateMoonRotation() {
         // Rotate Moon at half speed around y-axis
         moonAngle -= (moonRotationSpeed / 2.0f);
+    }
+
+    // Update cloud rotation angle for realistic cloud movement (faster than Earth due to wind)
+    private void updateCloudRotation() {
+        // Rotate clouds faster than Earth to simulate wind patterns
+        cloudAngle += cloudRotationSpeed;
     }
 
     // Calculate Earth's Z position based on current orbit state and transition progress
@@ -188,8 +200,9 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.scaleM(earthModelMatrix, 0, zoomScale, zoomScale, zoomScale);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthModelMatrix, 0);
 
-        // Draw the Earth
-        sphere.drawEarth(earthTexture, mvpMatrix);
+        // Draw the Earth with cloud overlay
+        float cloudRotationDegrees = cloudAngle - earthAngle;
+        sphere.drawEarth(earthTexture, cloudTexture, cloudRotationDegrees, cloudAlpha, mvpMatrix);
     }
 
     // Draw the Earth sphere with motion blur effect during transition
@@ -210,9 +223,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.scaleM(earthModelMatrix, 0, zoomScale, zoomScale, zoomScale);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthModelMatrix, 0);
 
-        // Draw the Earth with motion blur
+        // Draw the Earth with motion blur and cloud overlay
         float currentBlurIntensity = motionBlurIntensity;
-        sphere.drawEarthWithBlur(earthTexture, mvpMatrix, currentBlurIntensity);
+        float cloudRotationDegrees = cloudAngle - earthAngle;
+        sphere.drawEarthWithBlur(earthTexture, cloudTexture, cloudRotationDegrees, cloudAlpha, mvpMatrix, currentBlurIntensity);
     }
 
     // Draw the Moon sphere with current rotation and position

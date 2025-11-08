@@ -12,6 +12,9 @@ public class Sphere {
     private FloatBuffer vertexBuffer, texBuffer;
     private ShortBuffer indexBuffer;
 
+    private static final int LATITUDE_BANDS = 120;
+    private static final int LONGITUDE_BANDS = 120;
+
     private int programEarth;
     private int programMoon;
     private int programBackground;
@@ -23,6 +26,12 @@ public class Sphere {
     private int backgroundTextureUniformHandler;
     private int motionBlurTextureUniformHandler;
     private int motionBlurIntensityHandler;
+    private int earthCloudTextureUniformHandler;
+    private int earthCloudRotationUniformHandler;
+    private int earthCloudAlphaUniformHandler;
+    private int motionBlurCloudTextureUniformHandler;
+    private int motionBlurCloudRotationUniformHandler;
+    private int motionBlurCloudAlphaUniformHandler;
     private int matrixHandler;
     private int matrixHandlerBackground;
     private int matrixHandlerMotionBlur;
@@ -43,16 +52,28 @@ public class Sphere {
                         "  vTexCoord = aTexCoord;" +                                                    // Pass texture coordinates to the fragment shader
                         "}";
 
-// Fragment shader code for rendering the sphere
+        // Fragment shader code for rendering the sphere
         String sphereFragmentShaderCode =
                 "precision mediump float;" +                                                            // Set floating-point precision
                         "uniform sampler2D uEarthTexture;" +                                            // Uniform sampler for earth texture
+                        "uniform sampler2D uCloudTexture;" +                                            // Uniform sampler for cloud texture
+                        "uniform float uCloudRotation;" +                                               // Uniform for cloud rotation (degrees)
+                        "uniform float uCloudAlpha;" +                                                  // Uniform for cloud transparency
                         "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
                         "void main() {" +
-                        "  gl_FragColor = texture2D(uEarthTexture, vTexCoord);" +                       // Sample earth texture at given texture coordinates
+                        "  float rotationOffset = uCloudRotation / 360.0;" +                            // Convert rotation degrees to texture offset
+                        "  float rotatedU = mod(vTexCoord.x + rotationOffset, 1.0);" +                  // Wrap horizontally for seamless clouds
+                        "  vec2 rotatedCoord = vec2(rotatedU, vTexCoord.y);" +                          // Use rotated horizontal coordinate
+                        "  vec4 earthColor = texture2D(uEarthTexture, vTexCoord);" +                    // Sample earth texture
+                        "  vec4 cloudSample = texture2D(uCloudTexture, rotatedCoord);" +                // Sample cloud texture
+                        "  float cloudMask = cloudSample.r;" +                                          // Use red channel as intensity
+                        "  float blendFactor = cloudMask * uCloudAlpha;" +                              // Compute blend factor with alpha
+                        "  vec3 cloudColor = vec3(cloudMask);" +                                        // Convert to grayscale color
+                        "  vec3 finalColor = mix(earthColor.rgb, cloudColor, clamp(blendFactor, 0.0, 1.0));" + // Blend colors
+                        "  gl_FragColor = vec4(finalColor, earthColor.a);" +                            // Output final color
                         "}";
 
-// Fragment shader code for rendering the moon with clouds
+        // Fragment shader code for rendering the moon with clouds
         String moonFragmentShaderCode =
                 "precision mediump float;" +                                                            // Set floating-point precision
                         "uniform sampler2D uCloudTexture;" +                                            // Uniform sampler for cloud texture
@@ -70,22 +91,34 @@ public class Sphere {
         String motionBlurFragmentShaderCode =
                 "precision mediump float;" +                                                            // Set floating-point precision
                         "uniform sampler2D uEarthTexture;" +                                            // Uniform sampler for texture
+                        "uniform sampler2D uCloudTexture;" +                                            // Uniform sampler for cloud texture
                         "uniform float uBlurIntensity;" +                                              // Uniform for blur intensity control
+                        "uniform float uCloudRotation;" +                                               // Uniform for cloud rotation (degrees)
+                        "uniform float uCloudAlpha;" +                                                  // Uniform for cloud transparency
                         "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
                         "void main() {" +
-                        "  vec4 color = texture2D(uEarthTexture, vTexCoord);" +                        // Sample original texture color at given texture coordinates
+                        "  vec4 baseColor = texture2D(uEarthTexture, vTexCoord);" +                    // Sample original texture color
                         "  vec2 center = vec2(0.5, 0.5);" +                                            // Calculate texture center point
-                        "  vec2 dir = normalize(vTexCoord - center);" +                                // Calculate direction vector from center to current coordinate
-                        "  float dist = distance(vTexCoord, center);" +                                 // Calculate distance from center for radial blur effect
+                        "  vec2 dir = normalize(vTexCoord - center);" +                                // Direction vector from center
+                        "  float dist = distance(vTexCoord, center);" +                                 // Distance from center for blur strength
                         "  vec4 blurColor = vec4(0.0);" +                                               // Initialize blur color accumulator
                         "  float samples = 8.0;" +                                                      // Number of samples for blur effect
-                        "  for (float i = 0.0; i < 8.0; i++) {" +                                      // Loop through samples to create blur streaks
-                        "    float offset = (i / samples) * uBlurIntensity * dist;" +                  // Calculate offset distance based on sample index and blur intensity
-                        "    vec2 sampleCoord = vTexCoord + dir * offset;" +                            // Calculate sample coordinate along radial direction
-                        "    blurColor += texture2D(uEarthTexture, sampleCoord);" +                     // Accumulate color from sampled texture coordinate
+                        "  for (float i = 0.0; i < 8.0; i++) {" +                                      // Accumulate blur samples
+                        "    float offset = (i / samples) * uBlurIntensity * dist;" +                  // Offset based on sample index and blur intensity
+                        "    vec2 sampleCoord = vTexCoord + dir * offset;" +                            // Sample coordinate along direction vector
+                        "    blurColor += texture2D(uEarthTexture, sampleCoord);" +                     // Accumulate color from sample
                         "  }" +
-                        "  blurColor /= samples;" +                                                     // Average the accumulated blur color
-                        "  gl_FragColor = mix(color, blurColor, uBlurIntensity);" +                     // Blend original color with blurred color based on intensity
+                        "  blurColor /= samples;" +                                                     // Average blur color
+                        "  vec3 blurredEarth = mix(baseColor.rgb, blurColor.rgb, clamp(uBlurIntensity, 0.0, 1.0));" + // Blend blurred and base earth color
+                        "  float rotationOffset = uCloudRotation / 360.0;" +                            // Convert rotation degrees to texture offset
+                        "  float rotatedU = mod(vTexCoord.x + rotationOffset, 1.0);" +                  // Wrap horizontally for clouds
+                        "  vec2 rotatedCoord = vec2(rotatedU, vTexCoord.y);" +                          // Use rotated horizontal coordinate
+                        "  vec4 cloudSample = texture2D(uCloudTexture, rotatedCoord);" +                // Sample cloud texture
+                        "  float cloudMask = cloudSample.r;" +                                          // Use grayscale intensity as mask
+                        "  float blendFactor = cloudMask * uCloudAlpha;" +                              // Scale by desired alpha
+                        "  vec3 cloudColor = vec3(cloudMask);" +                                        // Convert intensity to RGB
+                        "  vec3 finalColor = mix(blurredEarth, cloudColor, clamp(blendFactor, 0.0, 1.0));" + // Overlay clouds onto blurred earth
+                        "  gl_FragColor = vec4(finalColor, baseColor.a);" +                             // Output final color with alpha
                         "}";
 
         int vertexShader = loadShader(GLES32.GL_VERTEX_SHADER, vertexShaderCode);
@@ -116,9 +149,15 @@ public class Sphere {
         positionHandler = GLES32.glGetAttribLocation(programEarth, "aPosition");
         textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
         earthTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthTexture");
+        earthCloudTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudTexture");
+        earthCloudRotationUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudRotation");
+        earthCloudAlphaUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudAlpha");
         moonTextureUniformHandler = GLES32.glGetUniformLocation(programMoon, "uCloudTexture");
         backgroundTextureUniformHandler = GLES32.glGetUniformLocation(programBackground, "uEarthTexture");
         motionBlurTextureUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uEarthTexture");
+        motionBlurCloudTextureUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uCloudTexture");
+        motionBlurCloudRotationUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uCloudRotation");
+        motionBlurCloudAlphaUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uCloudAlpha");
         motionBlurIntensityHandler = GLES32.glGetUniformLocation(programMotionBlur, "uBlurIntensity");
         matrixHandler = GLES32.glGetUniformLocation(programEarth, "uMVPMatrix");
         matrixHandlerBackground = GLES32.glGetUniformLocation(programBackground, "uMVPMatrix");
@@ -135,8 +174,8 @@ public class Sphere {
 
     // Generate sphere geometry with vertices, texture coordinates, and indices
     private void generateSphere() {
-        int numVertices = (30 + 1) * (30 + 1);
-        int numIndices = 6 * 30 * 30;
+        int numVertices = (LATITUDE_BANDS + 1) * (LONGITUDE_BANDS + 1);
+        int numIndices = 6 * LATITUDE_BANDS * LONGITUDE_BANDS;
 
         float[] vertices = new float[3 * numVertices];
         float[] texCords = new float[2 * numVertices];
@@ -144,20 +183,20 @@ public class Sphere {
 
         int vertexIndex = 0;
         int textureCoordinateIndex = 0;
-        for (int lat = 0; lat <= 30; lat++) {
-            float theta = lat * (float) Math.PI / 30;
+        for (int lat = 0; lat <= LATITUDE_BANDS; lat++) {
+            float theta = lat * (float) Math.PI / LATITUDE_BANDS;
             float sinTheta = (float) Math.sin(theta);
             float cosTheta = (float) Math.cos(theta);
 
-            for (int lon = 0; lon <= 30; lon++) {
-                float phi = lon * 2 * (float) Math.PI / 30;
+            for (int lon = 0; lon <= LONGITUDE_BANDS; lon++) {
+                float phi = lon * 2 * (float) Math.PI / LONGITUDE_BANDS;
                 float sinPhi = (float) Math.sin(phi);
                 float cosPhi = (float) Math.cos(phi);
 
                 float x = cosPhi * sinTheta;
                 float z = sinPhi * sinTheta;
-                float u = 1.0f - (lon / (float) 30);
-                float v = lat / (float) 30;
+                float u = 1.0f - (lon / (float) LONGITUDE_BANDS);
+                float v = lat / (float) LATITUDE_BANDS;
 
                 vertices[vertexIndex++] = x;
                 vertices[vertexIndex++] = cosTheta;
@@ -169,10 +208,10 @@ public class Sphere {
         }
 
         int index = 0;
-        for (int lat = 0; lat < 30; lat++) {
-            for (int lon = 0; lon < 30; lon++) {
-                int first = (lat * (30 + 1)) + lon;
-                int second = first + 30 + 1;
+        for (int lat = 0; lat < LATITUDE_BANDS; lat++) {
+            for (int lon = 0; lon < LONGITUDE_BANDS; lon++) {
+                int first = (lat * (LONGITUDE_BANDS + 1)) + lon;
+                int second = first + LONGITUDE_BANDS + 1;
 
                 indices[index++] = (short) first;
                 indices[index++] = (short) second;
@@ -196,8 +235,8 @@ public class Sphere {
         indexBuffer.put(indices).position(0);
     }
 
-    // Draw the Earth using the specified Earth texture and MVP matrix
-    public void drawEarth(int earthTexture, float[] mvpMatrix) {
+    // Draw the Earth using the specified Earth and cloud textures and MVP matrix
+    public void drawEarth(int earthTexture, int cloudTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix) {
         GLES32.glUseProgram(programEarth);
 
         GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
@@ -209,6 +248,13 @@ public class Sphere {
         GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
         GLES32.glUniform1i(earthTextureUniformHandler, 0);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
+        GLES32.glUniform1i(earthCloudTextureUniformHandler, 1);
+
+        GLES32.glUniform1f(earthCloudRotationUniformHandler, cloudRotation);
+        GLES32.glUniform1f(earthCloudAlphaUniformHandler, cloudAlpha);
 
         GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
 
@@ -265,7 +311,7 @@ public class Sphere {
     }
 
     // Draw the Earth with motion blur effect using the motion blur shader program
-    public void drawEarthWithBlur(int earthTexture, float[] mvpMatrix, float blurIntensity) {
+    public void drawEarthWithBlur(int earthTexture, int cloudTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix, float blurIntensity) {
         GLES32.glUseProgram(programMotionBlur);
 
         GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
@@ -278,7 +324,13 @@ public class Sphere {
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
         GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
 
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
+        GLES32.glUniform1i(motionBlurCloudTextureUniformHandler, 1);
+
         GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
+        GLES32.glUniform1f(motionBlurCloudRotationUniformHandler, cloudRotation);
+        GLES32.glUniform1f(motionBlurCloudAlphaUniformHandler, cloudAlpha);
 
         GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
 
@@ -298,11 +350,17 @@ public class Sphere {
         GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
         GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
 
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
+        GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
+
         GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
-        GLES32.glUniform1i(motionBlurTextureUniformHandler, 1);
+        GLES32.glUniform1i(motionBlurCloudTextureUniformHandler, 1);
 
         GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
+        GLES32.glUniform1f(motionBlurCloudRotationUniformHandler, 0.0f);
+        GLES32.glUniform1f(motionBlurCloudAlphaUniformHandler, 0.0f);
 
         GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
 
@@ -311,4 +369,5 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(positionHandler);
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
     }
+
 }
