@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.app.nfusion.globe3d'
-    compileSdk 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId "com.app.nfusion.globe3d"
         minSdk 24
-        targetSdk 34
+        targetSdk 36
         versionCode 1
         versionName "1.0"
 
@@ -23,9 +23,10 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
+    compileSdkMinor 1
 }
 
 dependencies {
