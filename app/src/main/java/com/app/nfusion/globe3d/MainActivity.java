@@ -29,15 +29,46 @@ public class MainActivity extends Activity {
     private TextView tvPerformanceInfo; // Shows FPS, triangle count, and memory usage
     private final Handler handler = new Handler(Looper.getMainLooper()); // Updates UI on main thread
     private boolean performanceInfoVisible = false; // Tracks if performance info is shown
+    private View loadingScreen; // Loading screen overlay
+    private ParticleView particleView; // Particle animation view
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Initialize loading screen
+        loadingScreen = findViewById(R.id.loading_screen_container);
+        particleView = findViewById(R.id.particle_view);
+        if (particleView != null) {
+            particleView.startAnimation();
+        }
+
         // Initialize OpenGL surface view and renderer
         glSurfaceView = findViewById(R.id.gl_surface_view);
-        renderer = (Renderer) glSurfaceView.getRenderer();
+
+        // Set loading callback after view is fully initialized
+        // Post to ensure renderer is ready
+        glSurfaceView.post(() -> {
+            renderer = (Renderer) glSurfaceView.getRenderer();
+            if (renderer != null) {
+                renderer.setLoadingCallback(() -> {
+                    // Hide loading screen with fade animation
+                    if (loadingScreen != null) {
+                        loadingScreen.animate()
+                                .alpha(0.0f)
+                                .setDuration(500)
+                                .withEndAction(() -> {
+                                    loadingScreen.setVisibility(View.GONE);
+                                    if (particleView != null) {
+                                        particleView.stopAnimation();
+                                    }
+                                })
+                                .start();
+                    }
+                });
+            }
+        });
 
         // Initialize UI components
         tvPlanetName = findViewById(R.id.tv_planet_name);

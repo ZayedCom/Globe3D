@@ -139,6 +139,11 @@ public class Renderer implements GLSurfaceView.Renderer {
     private static final float MIN_CAMERA_DISTANCE = 0.5f; // Minimum safe distance to prevent collision
     private volatile int cameraTarget = 3; // Current camera focus: 0=Sun, 1=Mercury, 2=Venus, 3=Earth, 4=Moon, 5=Mars, 6=Jupiter, 7=Saturn, 8=Uranus, 9=Neptune
 
+    // Set loading callback
+    public void setLoadingCallback(LoadingCallback callback) {
+        this.loadingCallback = callback;
+    }
+
     // Get current camera target name
     public String getCameraTargetName() {
         return switch (cameraTarget) {
@@ -181,6 +186,13 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int orbitPositionHandler; // Shader attribute location for orbit vertex positions
     private int orbitMatrixHandler; // Shader uniform location for orbit transformation matrix
     private FloatBuffer orbitBuffer; // Buffer containing orbit path vertex data
+
+    // Loading callback interface
+    public interface LoadingCallback {
+        void onAssetsLoaded();
+    }
+
+    private LoadingCallback loadingCallback; // Callback to notify when assets are loaded
 
     // Initialize the renderer with context and set up identity matrices
     public Renderer(Context context) {
@@ -358,6 +370,17 @@ public class Renderer implements GLSurfaceView.Renderer {
         earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
 
         initOrbitRendering();
+
+        // Notify that all assets are loaded
+        if (loadingCallback != null) {
+            // Post to main thread to ensure UI updates happen on the correct thread
+            android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.post(() -> {
+                if (loadingCallback != null) {
+                    loadingCallback.onAssetsLoaded();
+                }
+            });
+        }
     }
 
     // Initialize orbit path rendering
