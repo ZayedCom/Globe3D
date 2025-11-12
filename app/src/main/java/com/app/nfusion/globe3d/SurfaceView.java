@@ -18,10 +18,11 @@ public class SurfaceView extends GLSurfaceView {
     private static final float FULL_TURN = (float) (Math.PI * 2.0f); // Full rotation in radians
 
     private com.app.nfusion.globe3d.Renderer renderer; // OpenGL renderer managing the 3D scene
-    
+
     public Renderer getRenderer() {
         return renderer;
     }
+
     private ScaleGestureDetector scaleGestureDetector; // Detects pinch-to-zoom gestures
     private GestureDetector swipeGestureDetector; // Detects swipe gestures for planet switching
     private float lastTouchX; // X coordinate of last touch event
@@ -153,7 +154,7 @@ public class SurfaceView extends GLSurfaceView {
 
             // Check if touch started AND ended on empty space (not on any celestial body)
             // This ensures we only switch when swiping outside objects, not when panning on them
-            if (!isTouchOnEmptySpace(e1.getX(), e1.getY()) || !isTouchOnEmptySpace(e2.getX(), e2.getY())) {
+            if (isTouchOnEmptySpace(e1.getX(), e1.getY()) || isTouchOnEmptySpace(e2.getX(), e2.getY())) {
                 return false;
             }
 
@@ -191,7 +192,7 @@ public class SurfaceView extends GLSurfaceView {
         float approximateRadius = Math.min(getWidth(), getHeight()) * 0.35f;
 
         // Touch is on empty space if it's far from center
-        return distance > approximateRadius;
+        return !(distance > approximateRadius);
     }
 
     // Normalize angle to range [-PI, PI]
