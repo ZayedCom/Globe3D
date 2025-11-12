@@ -2,26 +2,44 @@ package com.app.nfusion.globe3d;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.Transformation;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.view.ViewGroup;
-import android.graphics.drawable.Drawable;
 import android.os.Debug;
 
 import androidx.annotation.NonNull;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class MainActivity extends Activity {
 
     private View loadingScreen; // Loading screen overlay
     private ParticleView particleView; // Particle animation view
+    private LinearLayout swipeHintContainer; // Container for swipe hint message
+    private TextView tvSwipeHint; // Text view for swipe hint
+    private ImageView icArrowLeftHint; // Left arrow icon
+    private ImageView icArrowRightHint; // Right arrow icon
     private SurfaceView glSurfaceView; // OpenGL surface for 3D rendering
     private Renderer renderer; // Manages the 3D scene and rendering
     private TextView tvPlanetName; // Displays current planet name at top center
@@ -32,12 +50,21 @@ public class MainActivity extends Activity {
     private LinearLayout infoContentLayout; // Layout holding dynamically generated info rows
     private TextView tvPerformanceInfo; // Shows FPS, triangle count, and memory usage
     private final Handler handler = new Handler(Looper.getMainLooper()); // Updates UI on main thread
+    private final Map<View, View> shimmerViews = new HashMap<>(); // Map to store shimmer overlay views
+    private final Map<ImageView, Drawable> originalImageDrawables = new HashMap<>(); // Store original ImageView drawables
     private boolean performanceInfoVisible = false; // Tracks if performance info is shown
+    private boolean hintShownThisSession = false; // Whether hint has been shown in this session
+    private static final String PREFS_NAME = "data"; // SharedPreferences name
+    private static final String KEY_LAUNCH_COUNT = "launchCount"; // Key for launch count
+    private static final int MAX_HINT_SHOWS = 3; // Maximum times to show hint
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Increment launch count
+        incrementLaunchCount();
 
         // Initialize loading screen
         loadingScreen = findViewById(R.id.loading_screen_container);
@@ -48,6 +75,9 @@ public class MainActivity extends Activity {
 
         // Initialize OpenGL surface view and renderer
         glSurfaceView = findViewById(R.id.gl_surface_view);
+
+        // Set swipe listener to hide hint when user swipes
+        glSurfaceView.setSwipeListener(this::hideSwipeHint);
 
         // Set loading callback after view is fully initialized
         // Post to ensure renderer is ready
@@ -75,6 +105,8 @@ public class MainActivity extends Activity {
                                     if (btnPerformance != null) {
                                         btnPerformance.setVisibility(View.VISIBLE);
                                     }
+                                    // Check if we should show hint after loading completes
+                                    checkAndShowHint();
                                 })
                                 .start();
                     }
@@ -90,6 +122,10 @@ public class MainActivity extends Activity {
         infoContentContainer = findViewById(R.id.info_content_container);
         infoContentLayout = findViewById(R.id.info_content_layout);
         tvPerformanceInfo = findViewById(R.id.tv_performance_info);
+        swipeHintContainer = findViewById(R.id.swipe_hint_container);
+        tvSwipeHint = findViewById(R.id.tv_swipe_hint);
+        icArrowLeftHint = findViewById(R.id.ic_arrow_left_hint);
+        icArrowRightHint = findViewById(R.id.ic_arrow_right_hint);
 
         // Hide UI elements during loading
         tvPlanetName.setVisibility(View.GONE);
@@ -395,6 +431,298 @@ public class MainActivity extends Activity {
         if (glSurfaceView != null) {
             glSurfaceView.onPause();
         }
+    }
+
+    // Check if hint should be shown and display it
+    private void checkAndShowHint() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        int launchCount = prefs.getInt(KEY_LAUNCH_COUNT, 0);
+
+        // Only show if we haven't shown it 3 times yet
+        if (launchCount < MAX_HINT_SHOWS) {
+            // Show hint after loading is complete and a short delay
+            handler.postDelayed(() -> {
+                if (swipeHintContainer != null && !hintShownThisSession && loadingScreen != null && loadingScreen.getVisibility() == View.GONE) {
+                    swipeHintContainer.setVisibility(View.VISIBLE);
+                    swipeHintContainer.setAlpha(0.0f);
+                    swipeHintContainer.animate()
+                            .alpha(1.0f)
+                            .setDuration(500)
+                            .start();
+                    startShimmerAnimation();
+                    hintShownThisSession = true;
+                }
+            }, 2000); // 2 second delay after loading
+        }
+    }
+
+    // Start shimmer animation on the hint text and icons (iOS 4 style)
+    private void startShimmerAnimation() {
+        if (tvSwipeHint == null || icArrowLeftHint == null || icArrowRightHint == null || swipeHintContainer == null)
+            return;
+
+        // Wait for views to be measured before starting animation
+        swipeHintContainer.post(() -> {
+            // Create iOS 4 style shimmer effect that sweeps across from left to right (text only)
+            applyShimmerToTextView(tvSwipeHint);
+            // Apply fade in/out animation to arrows (30% to 100% opacity)
+            applyFadeAnimationToImageView(icArrowLeftHint);
+            applyFadeAnimationToImageView(icArrowRightHint);
+        });
+    }
+
+    // Apply iOS 4 style shimmer to TextView using shader
+    private void applyShimmerToTextView(TextView textView) {
+        if (textView == null) return;
+
+        int viewWidth = textView.getWidth();
+        if (viewWidth == 0) {
+            textView.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            );
+            viewWidth = textView.getMeasuredWidth();
+        }
+
+        // Create custom animation that updates the shader
+        ShimmerAnimation shimmerAnim = new ShimmerAnimation(textView, viewWidth, true);
+        shimmerAnim.setDuration(2000);
+        shimmerAnim.setRepeatCount(Animation.INFINITE);
+        shimmerAnim.setRepeatMode(Animation.RESTART);
+        shimmerAnim.setInterpolator(new LinearInterpolator());
+
+        textView.startAnimation(shimmerAnim);
+        shimmerViews.put(textView, textView); // Store reference for cleanup
+    }
+
+    // Apply fade in/out animation to ImageView (30% to 100% opacity)
+    private void applyFadeAnimationToImageView(ImageView imageView) {
+        if (imageView == null) return;
+
+        // Create alpha animation that fades from 30% (0.3) to 100% (1.0)
+        android.view.animation.AlphaAnimation fadeAnim = new android.view.animation.AlphaAnimation(0.3f, 1.0f);
+        fadeAnim.setDuration(1500);
+        fadeAnim.setRepeatCount(Animation.INFINITE);
+        fadeAnim.setRepeatMode(Animation.REVERSE);
+        fadeAnim.setInterpolator(new LinearInterpolator());
+
+        imageView.startAnimation(fadeAnim);
+        shimmerViews.put(imageView, imageView); // Store reference for cleanup
+    }
+
+    // Custom animation class for iOS 4 style shimmer effect
+    private class ShimmerAnimation extends Animation {
+        private final View targetView;
+        private final int viewWidth;
+        private final boolean isTextView;
+        private final LinearGradient gradient;
+        private final Matrix matrix;
+        private ShimmerMaskDrawable shimmerDrawable;
+
+        public ShimmerAnimation(View view, int width, boolean isText) {
+            this.targetView = view;
+            this.viewWidth = width;
+            this.isTextView = isText;
+            this.matrix = new Matrix();
+
+            // Initialize gradient with initial position
+            // For iOS 4 style: white text with bright white shimmer highlight
+            // Use white with varying alpha - transparent areas show base white, opaque areas create highlight
+            float gradientStart = -viewWidth;
+            float gradientEnd = gradientStart + viewWidth * 0.6f;
+            // Varying alpha creates the highlight - where alpha is high, it's brighter
+            int[] colors = {
+                    0x60FFFFFF,  // Semi-transparent white (base - text visible)
+                    0x80FFFFFF,  // More opaque white
+                    0xFFFFFFFF,  // Fully opaque white (bright highlight at center)
+                    0x80FFFFFF,  // More opaque white
+                    0x60FFFFFF   // Semi-transparent white (base - text visible)
+            };
+            float[] positions = {0.0f, 0.35f, 0.5f, 0.65f, 1.0f};
+
+            gradient = new LinearGradient(
+                    gradientStart, 0, gradientEnd, 0,
+                    colors, positions,
+                    Shader.TileMode.CLAMP
+            );
+
+            // For ImageView, create shimmer drawable wrapper
+            if (!isText && targetView instanceof ImageView iv) {
+                Drawable original = iv.getDrawable();
+                if (original != null) {
+                    // Store original drawable
+                    originalImageDrawables.put(iv, original);
+                    shimmerDrawable = new ShimmerMaskDrawable(original, gradient);
+                    iv.setImageDrawable(shimmerDrawable);
+                }
+            }
+        }
+
+        @Override
+        protected void applyTransformation(float interpolatedTime, Transformation t) {
+            super.applyTransformation(interpolatedTime, t);
+
+            if (targetView == null) return;
+
+            // Calculate gradient position (moves from -viewWidth to +viewWidth)
+            float gradientStart = -viewWidth + (interpolatedTime * viewWidth * 3);
+
+            // Update gradient matrix for movement
+            matrix.reset();
+            matrix.setTranslate(gradientStart, 0);
+            gradient.setLocalMatrix(matrix);
+
+            if (isTextView && targetView instanceof TextView tv) {
+                // Apply shader to text paint for iOS 4 style shimmer
+                Paint paint = tv.getPaint();
+                // Ensure text color is white (base color)
+                tv.setTextColor(0xFFFFFFFF);
+                // Apply shader with varying alpha - creates highlight effect
+                // The shader replaces text color, so use white with varying alpha
+                paint.setShader(gradient);
+                paint.setXfermode(null);
+                targetView.invalidate();
+            } else if (targetView instanceof ImageView && shimmerDrawable != null) {
+                // Update the shimmer drawable's gradient
+                shimmerDrawable.updateGradient(gradient);
+                targetView.invalidate();
+            }
+        }
+    }
+
+    // Custom drawable that applies gradient shader as a mask (iOS 4 style)
+    private static class ShimmerMaskDrawable extends Drawable {
+        private final Drawable originalDrawable;
+        private LinearGradient gradient;
+        private final Paint paint;
+        private final Paint maskPaint;
+
+        public ShimmerMaskDrawable(Drawable original, LinearGradient grad) {
+            this.originalDrawable = original;
+            this.gradient = grad;
+            this.paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            this.maskPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            this.maskPaint.setShader(gradient);
+
+            // Copy bounds from original
+            if (original != null) {
+                setBounds(original.getBounds());
+            }
+        }
+
+        public void updateGradient(LinearGradient grad) {
+            this.gradient = grad;
+            this.maskPaint.setShader(gradient);
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            if (originalDrawable == null) return;
+
+            // Save layer for proper blending with alpha
+            int saveCount = canvas.saveLayer(
+                    getBounds().left, getBounds().top,
+                    getBounds().right, getBounds().bottom,
+                    null
+            );
+
+            // Draw original icon first
+            originalDrawable.draw(canvas);
+
+            // Draw the gradient shimmer on top using SCREEN mode
+            // SCREEN mode adds brightness - white on white makes it brighter (iOS 4 style)
+            maskPaint.setShader(gradient);
+            maskPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SCREEN));
+            canvas.drawRect(getBounds(), maskPaint);
+
+            // Now mask it to only show where the icon is (using DST_IN)
+            // This ensures shimmer only appears ON the icon pixels, not behind it
+            Paint iconMaskPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            iconMaskPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+            originalDrawable.draw(canvas);
+
+            canvas.restoreToCount(saveCount);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            if (originalDrawable != null) {
+                originalDrawable.setAlpha(alpha);
+            }
+            paint.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter colorFilter) {
+            if (originalDrawable != null) {
+                originalDrawable.setColorFilter(colorFilter);
+            }
+        }
+
+        @Override
+        public int getOpacity() {
+            return originalDrawable != null ? originalDrawable.getOpacity() : android.graphics.PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public void setBounds(int left, int top, int right, int bottom) {
+            super.setBounds(left, top, right, bottom);
+            if (originalDrawable != null) {
+                originalDrawable.setBounds(left, top, right, bottom);
+            }
+        }
+    }
+
+    // Hide the hint message (called when user swipes)
+    public void hideSwipeHint() {
+        if (swipeHintContainer != null && swipeHintContainer.getVisibility() == View.VISIBLE) {
+            // Remove shimmer overlay views
+            removeShimmerFromView(tvSwipeHint);
+            removeShimmerFromView(icArrowLeftHint);
+            removeShimmerFromView(icArrowRightHint);
+
+            swipeHintContainer.animate()
+                    .alpha(0.0f)
+                    .setDuration(300)
+                    .withEndAction(() -> swipeHintContainer.setVisibility(View.GONE))
+                    .start();
+        }
+    }
+
+    // Remove shimmer overlay from a view
+    private void removeShimmerFromView(View targetView) {
+        if (targetView == null) return;
+
+        // Clear animation
+        targetView.clearAnimation();
+
+        // Remove shader from TextView
+        if (targetView instanceof TextView tv) {
+            tv.getPaint().setShader(null);
+            tv.invalidate();
+        }
+
+        // Clear animation for ImageView (fade animation)
+        if (targetView instanceof ImageView iv) {
+            // Restore original drawable if it was replaced
+            Drawable original = originalImageDrawables.remove(iv);
+            if (original != null) {
+                iv.setImageDrawable(original);
+            }
+            // Reset alpha to full opacity
+            iv.setAlpha(1.0f);
+            iv.clearColorFilter();
+            iv.invalidate();
+        }
+
+        shimmerViews.remove(targetView);
+    }
+
+    // Increment launch count when app starts
+    private void incrementLaunchCount() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        int launchCount = prefs.getInt(KEY_LAUNCH_COUNT, 0);
+        prefs.edit().putInt(KEY_LAUNCH_COUNT, launchCount + 1).apply();
     }
 
     // Clean up handler callbacks when activity is destroyed

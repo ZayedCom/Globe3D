@@ -180,6 +180,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private float motionBlurIntensity = 0.0f; // Motion blur strength during transitions
     private final float[] lightDirection = new float[3]; // Direction of sunlight (from Sun to Earth)
     private final float[] lightColor = new float[]{1.2f, 1.1f, 0.9f}; // Color of sunlight (warm white)
+    private volatile boolean isPaused = false; // Whether all animations are paused
 
     private int frameCount = 0; // Number of frames rendered since last FPS calculation
     private long lastFpsTime = System.currentTimeMillis(); // Time of last FPS calculation
@@ -539,94 +540,119 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.perspectiveM(earthProjectionMatrix, 0, fov, ratio, 0.1f, 1000.0f);
     }
 
+    // Toggle pause state - freezes all animations when paused
+    public synchronized void togglePause() {
+        isPaused = !isPaused;
+    }
+
     // Update rotation angles for all celestial bodies
     private void updateSunRotation() {
+        if (isPaused) return;
         sunAngle += sunRotationSpeed;
     }
 
     private void updateMercuryRotation() {
+        if (isPaused) return;
         mercuryAngle += mercuryRotationSpeed;
     }
 
     private void updateVenusRotation() {
+        if (isPaused) return;
         venusAngle -= venusRotationSpeed; // Retrograde rotation
     }
 
     private void updateEarthRotation() {
+        if (isPaused) return;
         earthAngle += earthRotationSpeed;
     }
 
     private void updateMarsRotation() {
+        if (isPaused) return;
         marsAngle += marsRotationSpeed;
     }
 
     private void updateJupiterRotation() {
+        if (isPaused) return;
         jupiterAngle += jupiterRotationSpeed;
     }
 
     private void updateSaturnRotation() {
+        if (isPaused) return;
         saturnAngle += saturnRotationSpeed;
     }
 
     private void updateUranusRotation() {
+        if (isPaused) return;
         uranusAngle += uranusRotationSpeed;
     }
 
     private void updateNeptuneRotation() {
+        if (isPaused) return;
         neptuneAngle += neptuneRotationSpeed;
     }
 
     private void updateMoonRotation() {
+        if (isPaused) return;
         moonAngle += moonRotationSpeed;
     }
 
     // Update cloud rotation angle for realistic cloud movement (faster than Earth due to wind)
     private void updateCloudRotation() {
+        if (isPaused) return;
         cloudAngle += cloudRotationSpeed;
     }
 
     // Update orbit angles for all planets
     private void updateMercuryOrbit() {
+        if (isPaused) return;
         mercuryOrbitAngle += mercuryOrbitSpeed;
         if (mercuryOrbitAngle > fullTurn) mercuryOrbitAngle -= fullTurn;
     }
 
     private void updateVenusOrbit() {
+        if (isPaused) return;
         venusOrbitAngle += venusOrbitSpeed;
         if (venusOrbitAngle > fullTurn) venusOrbitAngle -= fullTurn;
     }
 
     private void updateEarthOrbit() {
+        if (isPaused) return;
         earthOrbitAngle += earthOrbitSpeed;
         if (earthOrbitAngle > fullTurn) earthOrbitAngle -= fullTurn;
     }
 
     private void updateMarsOrbit() {
+        if (isPaused) return;
         marsOrbitAngle += marsOrbitSpeed;
         if (marsOrbitAngle > fullTurn) marsOrbitAngle -= fullTurn;
     }
 
     private void updateJupiterOrbit() {
+        if (isPaused) return;
         jupiterOrbitAngle += jupiterOrbitSpeed;
         if (jupiterOrbitAngle > fullTurn) jupiterOrbitAngle -= fullTurn;
     }
 
     private void updateSaturnOrbit() {
+        if (isPaused) return;
         saturnOrbitAngle += saturnOrbitSpeed;
         if (saturnOrbitAngle > fullTurn) saturnOrbitAngle -= fullTurn;
     }
 
     private void updateUranusOrbit() {
+        if (isPaused) return;
         uranusOrbitAngle += uranusOrbitSpeed;
         if (uranusOrbitAngle > fullTurn) uranusOrbitAngle -= fullTurn;
     }
 
     private void updateNeptuneOrbit() {
+        if (isPaused) return;
         neptuneOrbitAngle += neptuneOrbitSpeed;
         if (neptuneOrbitAngle > fullTurn) neptuneOrbitAngle -= fullTurn;
     }
 
     private void updateMoonOrbit() {
+        if (isPaused) return;
         moonOrbitAngle += moonOrbitSpeed;
         if (moonOrbitAngle > fullTurn) moonOrbitAngle -= fullTurn;
     }
@@ -750,6 +776,25 @@ public class Renderer implements GLSurfaceView.Renderer {
         }
     }
 
+    // Calculate light direction from Sun to any planet position
+    private float[] calculateLightDirection(float[] planetPos) {
+        float[] direction = new float[3];
+        // Light direction is from Sun (0,0,0) to planet
+        direction[0] = planetPos[0];
+        direction[1] = planetPos[1];
+        direction[2] = planetPos[2];
+        // Normalize
+        float length = (float) Math.sqrt(direction[0] * direction[0] +
+                direction[1] * direction[1] +
+                direction[2] * direction[2]);
+        if (length > 0.001f) {
+            direction[0] /= length;
+            direction[1] /= length;
+            direction[2] /= length;
+        }
+        return direction;
+    }
+
     // Draw the Sun at the center
     private void drawSun() {
         // Compute the rotation for the Sun
@@ -815,8 +860,9 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.multiplyMM(tempMatrix, 0, moonModelMatrix, 0, moonRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
 
-        // Draw the Moon
-        sphere.drawMoon(moonTexture, mvpMatrix);
+        // Calculate light direction for Moon
+        float[] moonLightDir = calculateLightDirection(moonPos);
+        sphere.drawPlanet(moonTexture, mvpMatrix, tempMatrix, moonLightDir, lightColor);
     }
 
     // Draw Mercury sphere with current rotation and position
@@ -830,7 +876,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, mercuryModelMatrix, 0, mercuryRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(mercuryTexture, mvpMatrix);
+        
+        // Calculate light direction for Mercury
+        float[] mercuryLightDir = calculateLightDirection(mercuryPos);
+        sphere.drawPlanet(mercuryTexture, mvpMatrix, tempMatrix, mercuryLightDir, lightColor);
     }
 
     // Draw Venus sphere with current rotation and position
@@ -844,7 +893,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, venusModelMatrix, 0, venusRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(venusTexture, mvpMatrix);
+        
+        // Calculate light direction for Venus
+        float[] venusLightDir = calculateLightDirection(venusPos);
+        sphere.drawPlanet(venusTexture, mvpMatrix, tempMatrix, venusLightDir, lightColor);
     }
 
     // Draw Mars sphere with current rotation and position
@@ -858,7 +910,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, marsModelMatrix, 0, marsRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(marsTexture, mvpMatrix);
+        
+        // Calculate light direction for Mars
+        float[] marsLightDir = calculateLightDirection(marsPos);
+        sphere.drawPlanet(marsTexture, mvpMatrix, tempMatrix, marsLightDir, lightColor);
     }
 
     // Draw Jupiter sphere with current rotation and position
@@ -872,7 +927,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, jupiterModelMatrix, 0, jupiterRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(jupiterTexture, mvpMatrix);
+        
+        // Calculate light direction for Jupiter
+        float[] jupiterLightDir = calculateLightDirection(jupiterPos);
+        sphere.drawPlanet(jupiterTexture, mvpMatrix, tempMatrix, jupiterLightDir, lightColor);
     }
 
     // Draw Saturn sphere with current rotation and position
@@ -886,7 +944,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, saturnModelMatrix, 0, saturnRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(saturnTexture, mvpMatrix);
+        
+        // Calculate light direction for Saturn
+        float[] saturnLightDir = calculateLightDirection(saturnPos);
+        sphere.drawPlanet(saturnTexture, mvpMatrix, tempMatrix, saturnLightDir, lightColor);
         
         // Draw Saturn rings with proper tilt (26.73° axial tilt)
         float[] viewProjMatrix = new float[16];
@@ -912,7 +973,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, uranusModelMatrix, 0, uranusRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(uranusTexture, mvpMatrix);
+        
+        // Calculate light direction for Uranus
+        float[] uranusLightDir = calculateLightDirection(uranusPos);
+        sphere.drawPlanet(uranusTexture, mvpMatrix, tempMatrix, uranusLightDir, lightColor);
     }
 
     // Draw Neptune sphere with current rotation and position
@@ -926,7 +990,10 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, neptuneModelMatrix, 0, neptuneRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        sphere.drawMoon(neptuneTexture, mvpMatrix);
+        
+        // Calculate light direction for Neptune
+        float[] neptuneLightDir = calculateLightDirection(neptunePos);
+        sphere.drawPlanet(neptuneTexture, mvpMatrix, tempMatrix, neptuneLightDir, lightColor);
     }
 
     // Scale the zoom level and clamp it to valid range with collision detection

@@ -37,6 +37,7 @@
     <string name="label_discovery_date">Discovery Date</string>
     <string name="label_discovered_by">Discovered By</string>
     <string name="label_missions_visited">Missions Visited</string>
+    <string name="swipe_hint_message">You can switch the planet by swiping left or right</string>
 
     <!-- Earth Data -->
     <string name="earth_name">Earth</string>

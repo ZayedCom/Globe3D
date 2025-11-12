@@ -17,7 +17,7 @@ public class Sphere {
     private static final int LONGITUDE_BANDS = 120; // Number of vertical divisions for sphere geometry
 
     private int programEarth; // OpenGL shader program ID for rendering Earth
-    private int programMoon; // OpenGL shader program ID for rendering Moon
+    private int programPlanet; // OpenGL shader program ID for rendering planets with realistic lighting
     private int programBackground; // OpenGL shader program ID for rendering background
     private int programMotionBlur; // OpenGL shader program ID for motion blur effect
     private int programSun; // OpenGL shader program ID for rendering Sun
@@ -26,7 +26,6 @@ public class Sphere {
     private int normalHandler; // Shader attribute location for vertex normals
     private int earthTextureUniformHandler; // Shader uniform location for Earth texture
     private int earthNightTextureUniformHandler; // Shader uniform location for Earth night texture
-    private int moonTextureUniformHandler; // Shader uniform location for Moon texture
     private int backgroundTextureUniformHandler; // Shader uniform location for background texture
     private int motionBlurTextureUniformHandler; // Shader uniform location for motion blur texture
     private int motionBlurIntensityHandler; // Shader uniform location for motion blur intensity
@@ -46,6 +45,14 @@ public class Sphere {
     private int matrixHandlerBackground; // Shader uniform location for background MVP matrix
     private int matrixHandlerMotionBlur; // Shader uniform location for motion blur MVP matrix
     private int matrixHandlerSun; // Shader uniform location for Sun MVP matrix
+    private int matrixHandlerPlanet; // Shader uniform location for planet MVP matrix
+    private int planetTextureUniformHandler; // Shader uniform location for planet texture
+    private int planetLightDirectionUniformHandler; // Shader uniform location for planet light direction
+    private int planetLightColorUniformHandler; // Shader uniform location for planet light color
+    private int planetModelMatrixUniformHandler; // Shader uniform location for planet model matrix
+    private int planetNormalHandler; // Shader attribute location for planet normals
+    private int planetPositionHandler; // Shader attribute location for planet positions
+    private int planetTexCoordHandler; // Shader attribute location for planet texture coordinates
     private FloatBuffer normalBuffer; // Buffer containing vertex normal vectors
     private int numIndices; // Total number of triangle indices for rendering
 
@@ -162,6 +169,49 @@ public class Sphere {
                         "  gl_FragColor = vec4(finalColor, earthColor.a);" +                            // Output final color
                         "}";
 
+        // Vertex shader code for planets with lighting support
+        String planetVertexShaderCode =
+                "uniform mat4 uMVPMatrix;" +                                                            // Uniform matrix for model-view-projection transformation
+                        "uniform mat4 uModelMatrix;" +                                                   // Model matrix for normal transformation
+                        "attribute vec4 aPosition;" +                                                   // Attribute for vertex positions
+                        "attribute vec2 aTexCoord;" +                                                   // Attribute for texture coordinates
+                        "attribute vec3 aNormal;" +                                                     // Attribute for vertex normals
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to pass texture coordinates to fragment shader
+                        "varying vec3 vNormal;" +                                                       // Varying variable to pass normals to fragment shader
+                        "varying vec3 vPosition;" +                                                     // Varying variable to pass position to fragment shader
+                        "void main() {" +
+                        "  gl_Position = uMVPMatrix * aPosition;" +                                     // Calculate final position based on MVP matrix
+                        "  vTexCoord = aTexCoord;" +                                                    // Pass texture coordinates to the fragment shader
+                        "  vNormal = normalize(mat3(uModelMatrix) * aNormal);" +                        // Transform and normalize normal vector
+                        "  vPosition = vec3(uModelMatrix * aPosition);" +                               // Transform position to world space
+                        "}";
+
+        // Fragment shader code for planets with realistic lighting
+        String planetFragmentShaderCode =
+                "precision mediump float;" +                                                            // Set floating-point precision
+                        "uniform sampler2D uPlanetTexture;" +                                           // Uniform sampler for planet texture
+                        "uniform vec3 uLightDirection;" +                                              // Uniform for light direction (from Sun)
+                        "uniform vec3 uLightColor;" +                                                   // Uniform for light color
+                        "varying vec2 vTexCoord;" +                                                     // Varying variable to receive texture coordinates from vertex shader
+                        "varying vec3 vNormal;" +                                                       // Varying variable to receive normals from vertex shader
+                        "varying vec3 vPosition;" +                                                     // Varying variable to receive position from vertex shader
+                        "void main() {" +
+                        "  vec4 planetColor = texture2D(uPlanetTexture, vTexCoord);" +                  // Sample planet texture
+                        "  vec3 normal = normalize(vNormal);" +                                         // Normalize the interpolated normal
+                        "  vec3 lightDir = normalize(-uLightDirection);" +                              // Normalize light direction (negate to point from Sun)
+                        "  float NdotL = dot(normal, lightDir);" +                                      // Calculate dot product (can be negative for shadow)
+                        "  float litNdotL = max(NdotL, 0.0);" +                                         // Clamped for lighting calculations (day side)
+                        "  float ambient = 0.15;" +                                                     // Base ambient lighting for visibility in shadows
+                        "  float dayNightBlend = smoothstep(-0.1, 0.1, NdotL);" +                      // Smooth transition at terminator
+                        "  vec3 diffuse = planetColor.rgb * (ambient + litNdotL * uLightColor);" +     // Apply ambient + diffuse lighting
+                        "  vec3 viewDir = normalize(-vPosition);" +                                     // View direction (simplified)
+                        "  vec3 reflectDir = reflect(-lightDir, normal);" +                             // Reflection direction for specular
+                        "  float specular = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);" +          // Specular highlight (lower shininess than Earth)
+                        "  specular *= dayNightBlend * 0.1;" +                                          // Subtle specular, only on day side
+                        "  vec3 finalColor = diffuse + specular * uLightColor;" +                       // Combine diffuse and specular
+                        "  gl_FragColor = vec4(finalColor, planetColor.a);" +                          // Output final color
+                        "}";
+
         // Fragment shader code for Sun with glowing effect
         String sunFragmentShaderCode =
                 "precision mediump float;" +                                                            // Set floating-point precision
@@ -228,8 +278,10 @@ public class Sphere {
 
         int vertexShader = loadShader(GLES32.GL_VERTEX_SHADER, vertexShaderCode);
         int earthVertexShader = loadShader(GLES32.GL_VERTEX_SHADER, earthVertexShaderCode);
+        int planetVertexShader = loadShader(GLES32.GL_VERTEX_SHADER, planetVertexShaderCode);
         int sphereFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, sphereFragmentShaderCode);
         int earthFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, earthFragmentShaderCode);
+        int planetFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, planetFragmentShaderCode);
         int sunFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, sunFragmentShaderCode);
         int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, moonFragmentShaderCode);
         int motionBlurFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, motionBlurFragmentShaderCode);
@@ -254,12 +306,18 @@ public class Sphere {
         GLES32.glAttachShader(programEarth, earthFragmentShader);
         GLES32.glLinkProgram(programEarth);
 
+        programPlanet = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programPlanet, planetVertexShader);
+        GLES32.glAttachShader(programPlanet, planetFragmentShader);
+        GLES32.glLinkProgram(programPlanet);
+
         programSun = GLES32.glCreateProgram();
         GLES32.glAttachShader(programSun, vertexShader);
         GLES32.glAttachShader(programSun, sunFragmentShader);
         GLES32.glLinkProgram(programSun);
 
-        programMoon = GLES32.glCreateProgram();
+        // OpenGL shader program ID for rendering Moon
+        int programMoon = GLES32.glCreateProgram();
         GLES32.glAttachShader(programMoon, vertexShader);
         GLES32.glAttachShader(programMoon, cloudFragmentShader);
         GLES32.glLinkProgram(programMoon);
@@ -293,7 +351,6 @@ public class Sphere {
         sunGlowIntensityUniformHandler = GLES32.glGetUniformLocation(programSun, "uGlowIntensity");
         sunLightDirectionUniformHandler = GLES32.glGetUniformLocation(programEarth, "uLightDirection");
         sunLightColorUniformHandler = GLES32.glGetUniformLocation(programEarth, "uLightColor");
-        moonTextureUniformHandler = GLES32.glGetUniformLocation(programMoon, "uCloudTexture");
         backgroundTextureUniformHandler = GLES32.glGetUniformLocation(programBackground, "uEarthTexture");
         motionBlurTextureUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uEarthTexture");
         motionBlurCloudTextureUniformHandler = GLES32.glGetUniformLocation(programMotionBlur, "uCloudTexture");
@@ -304,6 +361,14 @@ public class Sphere {
         matrixHandlerBackground = GLES32.glGetUniformLocation(programBackground, "uMVPMatrix");
         matrixHandlerMotionBlur = GLES32.glGetUniformLocation(programMotionBlur, "uMVPMatrix");
         matrixHandlerSun = GLES32.glGetUniformLocation(programSun, "uMVPMatrix");
+        matrixHandlerPlanet = GLES32.glGetUniformLocation(programPlanet, "uMVPMatrix");
+        planetPositionHandler = GLES32.glGetAttribLocation(programPlanet, "aPosition");
+        planetTexCoordHandler = GLES32.glGetAttribLocation(programPlanet, "aTexCoord");
+        planetNormalHandler = GLES32.glGetAttribLocation(programPlanet, "aNormal");
+        planetTextureUniformHandler = GLES32.glGetUniformLocation(programPlanet, "uPlanetTexture");
+        planetLightDirectionUniformHandler = GLES32.glGetUniformLocation(programPlanet, "uLightDirection");
+        planetLightColorUniformHandler = GLES32.glGetUniformLocation(programPlanet, "uLightColor");
+        planetModelMatrixUniformHandler = GLES32.glGetUniformLocation(programPlanet, "uModelMatrix");
         ringTextureUniformHandler = GLES32.glGetUniformLocation(programRings, "uRingTexture");
         ringMatrixHandler = GLES32.glGetUniformLocation(programRings, "uMVPMatrix");
     }
@@ -531,26 +596,33 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(normalHandler);
     }
 
-    // Draw the Moon using the specified Moon texture and MVP matrix
-    public void drawMoon(int moonTexture, float[] mvpMatrix) {
-        GLES32.glUseProgram(programMoon);
+    // Draw a planet with realistic lighting using the specified planet texture, MVP matrix, model matrix, light direction, and light color
+    public void drawPlanet(int planetTexture, float[] mvpMatrix, float[] modelMatrix, float[] lightDirection, float[] lightColor) {
+        GLES32.glUseProgram(programPlanet);
 
-        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
-        GLES32.glEnableVertexAttribArray(positionHandler);
+        GLES32.glVertexAttribPointer(planetPositionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(planetPositionHandler);
 
-        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
-        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+        GLES32.glVertexAttribPointer(planetTexCoordHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(planetTexCoordHandler);
 
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
-        GLES32.glUniform1i(moonTextureUniformHandler, 1);
+        GLES32.glVertexAttribPointer(planetNormalHandler, 3, GLES32.GL_FLOAT, false, 0, normalBuffer);
+        GLES32.glEnableVertexAttribArray(planetNormalHandler);
 
-        GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, planetTexture);
+        GLES32.glUniform1i(planetTextureUniformHandler, 0);
+
+        GLES32.glUniform3fv(planetLightDirectionUniformHandler, 1, lightDirection, 0);
+        GLES32.glUniform3fv(planetLightColorUniformHandler, 1, lightColor, 0);
+        GLES32.glUniformMatrix4fv(matrixHandlerPlanet, 1, false, mvpMatrix, 0);
+        GLES32.glUniformMatrix4fv(planetModelMatrixUniformHandler, 1, false, modelMatrix, 0);
 
         GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
 
-        GLES32.glDisableVertexAttribArray(positionHandler);
-        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+        GLES32.glDisableVertexAttribArray(planetPositionHandler);
+        GLES32.glDisableVertexAttribArray(planetTexCoordHandler);
+        GLES32.glDisableVertexAttribArray(planetNormalHandler);
     }
 
     // Draw the background space texture as a large sphere with depth testing disabled

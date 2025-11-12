@@ -18,20 +18,34 @@ public class SurfaceView extends GLSurfaceView {
     private static final float FULL_TURN = (float) (Math.PI * 2.0f); // Full rotation in radians
 
     private com.app.nfusion.globe3d.Renderer renderer; // OpenGL renderer managing the 3D scene
+    private SwipeListener swipeListener; // Listener for swipe events to hide hint
 
     public Renderer getRenderer() {
         return renderer;
+    }
+
+    // Interface for swipe events
+    public interface SwipeListener {
+        void onSwipeDetected();
+    }
+
+    // Set swipe listener
+    public void setSwipeListener(SwipeListener listener) {
+        this.swipeListener = listener;
     }
 
     private ScaleGestureDetector scaleGestureDetector; // Detects pinch-to-zoom gestures
     private GestureDetector swipeGestureDetector; // Detects swipe gestures for planet switching
     private float lastTouchX; // X coordinate of last touch event
     private float lastTouchY; // Y coordinate of last touch event
+    private float initialTouchX; // X coordinate of initial touch down for tap detection
+    private float initialTouchY; // Y coordinate of initial touch down for tap detection
     private boolean isDragging = false; // Whether user is currently dragging to rotate camera
     private float orbitAzimuth = (float) Math.PI; // Current camera horizontal rotation angle
     private float orbitElevation = 0.0f; // Current camera vertical tilt angle
     private static final float SWIPE_THRESHOLD = 100; // Minimum distance in pixels to register a swipe
     private static final float SWIPE_VELOCITY_THRESHOLD = 100; // Minimum velocity to register a swipe
+    private static final float TAP_THRESHOLD = 20; // Maximum movement in pixels to register as a tap (not a drag)
 
     // Initialize SurfaceView with default context
     public SurfaceView(Context context) {
@@ -78,8 +92,10 @@ public class SurfaceView extends GLSurfaceView {
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-                lastTouchX = e.getX(0);
-                lastTouchY = e.getY(0);
+                initialTouchX = e.getX(0);
+                initialTouchY = e.getY(0);
+                lastTouchX = initialTouchX;
+                lastTouchY = initialTouchY;
                 isDragging = true;
                 return true;
 
@@ -104,6 +120,15 @@ public class SurfaceView extends GLSurfaceView {
 
             case MotionEvent.ACTION_UP:
                 isDragging = false;
+                // Check if this was a single tap (minimal movement, not a drag or swipe)
+                float totalMovementX = e.getX(0) - initialTouchX;
+                float totalMovementY = e.getY(0) - initialTouchY;
+                float totalMovement = (float) Math.sqrt(totalMovementX * totalMovementX + totalMovementY * totalMovementY);
+                
+                // If movement is minimal and no swipe was detected, treat as a tap to toggle pause
+                if (totalMovement < TAP_THRESHOLD && !swipeHandled) {
+                    queueEvent(() -> renderer.togglePause());
+                }
                 performClick();
                 return true;
 
@@ -168,6 +193,11 @@ public class SurfaceView extends GLSurfaceView {
                     // Swipe right (negative diffX) cycles backward: Earth → Moon → Sun → Earth
                     boolean swipeLeft = diffX > 0;
                     queueEvent(() -> renderer.cycleCameraTarget(swipeLeft));
+                    
+                    // Notify listener that swipe was detected (to hide hint)
+                    if (swipeListener != null) {
+                        post(() -> swipeListener.onSwipeDetected());
+                    }
                     return true;
                 }
             }
