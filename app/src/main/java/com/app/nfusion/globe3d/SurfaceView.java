@@ -140,14 +140,16 @@ public class SurfaceView extends GLSurfaceView {
             return true;
         }
 
-        // Handle fling gesture to transition between Earth and Moon when swiping on empty space
+        // Handle fling gesture to transition between Earth, Sun, and Moon when swiping on empty space
         @Override
         public boolean onFling(MotionEvent e1, @NonNull MotionEvent e2, float velocityX, float velocityY) {
             if (e1 == null) {
                 return false;
             }
-            // Check if touch started on empty space (not on Earth or Moon)
-            if (!isTouchOnEmptySpace(e1.getX(), e1.getY())) {
+
+            // Check if touch started AND ended on empty space (not on any celestial body)
+            // This ensures we only switch when swiping outside objects, not when panning on them
+            if (isTouchOnEmptySpace(e1.getX(), e1.getY()) || isTouchOnEmptySpace(e2.getX(), e2.getY())) {
                 return false;
             }
 
@@ -157,12 +159,10 @@ public class SurfaceView extends GLSurfaceView {
             // Detect horizontal swipe gestures
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
-                    // Any horizontal swipe toggles between Earth and Moon
-                    if (renderer.isOrbitingMoon()) {
-                        queueEvent(() -> renderer.transitionToEarth());
-                    } else {
-                        queueEvent(() -> renderer.transitionToMoon());
-                    }
+                    // Swipe left (positive diffX) cycles forward: Earth → Sun → Moon → Earth
+                    // Swipe right (negative diffX) cycles backward: Earth → Moon → Sun → Earth
+                    boolean swipeLeft = diffX > 0;
+                    queueEvent(() -> renderer.cycleCameraTarget(swipeLeft));
                     return true;
                 }
             }
@@ -170,7 +170,7 @@ public class SurfaceView extends GLSurfaceView {
         }
     }
 
-    // Check if touch event occurred on empty space (not on Earth or Moon)
+    // Check if touch event occurred on empty space (not on any celestial body)
     private boolean isTouchOnEmptySpace(float touchX, float touchY) {
         // Get screen center
         float centerX = getWidth() / 2.0f;
@@ -182,11 +182,12 @@ public class SurfaceView extends GLSurfaceView {
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
         // Approximate sphere radius in screen space (adjust based on zoom and screen size)
-        // This is a rough approximation - smaller objects appear smaller
-        float approximateRadius = Math.min(getWidth(), getHeight()) * 0.25f;
+        // Use a larger radius to be more conservative - we want to ensure we're definitely outside
+        // This accounts for Earth, Sun, and Moon at different zoom levels
+        float approximateRadius = Math.min(getWidth(), getHeight()) * 0.35f;
 
         // Touch is on empty space if it's far from center
-        return distance > approximateRadius;
+        return !(distance > approximateRadius);
     }
 
     // Normalize angle to range [-PI, PI]

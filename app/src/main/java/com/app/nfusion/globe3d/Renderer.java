@@ -15,23 +15,33 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int moonTexture;
     private int backgroundTexture;
     private int cloudTexture;
+    private int sunTexture;
+    private int earthSpecularTexture;
+    private int earthNormalTexture;
     private final float[] mvpMatrix = new float[16];
     private final float[] earthRotationMatrix = new float[16];
     private final float[] earthViewMatrix = new float[16];
     private final float[] earthProjectionMatrix = new float[16];
     private final float[] earthModelMatrix = new float[16];
+    private final float[] sunModelMatrix = new float[16];
     private final float[] moonRotationMatrix = new float[16];
     private final float[] moonModelMatrix = new float[16];
     private float earthAngle;
     private float moonAngle;
     private float cloudAngle;
+    private float earthOrbitAngle = 0.0f; // Earth's orbit around Sun
+    private float moonOrbitAngle = 0.0f; // Moon's orbit around Earth
     private float zoomScale = 1.0f; // Zoom default scale
     private static final float minScale = 0.1f; // Zoom min scale
     private static final float maxScale = 5.0f; // Zoom max scale
-    private static final float moonOffset = 8.0f; // Real scale distance: Moon is ~60 Earth radii away (scaled for visibility)
-    private static final float moonRotationSpeed = 0.5f;
+    private static final float earthOrbitRadius = 15.0f; // Earth's distance from Sun
+    private static final float moonOffset = 3.0f; // Moon's distance from Earth
+    private static final float moonRotationSpeed = 0.025f; // 1/4 of previous speed
+    private static final float earthOrbitSpeed = 0.005f; // Earth's orbital speed around Sun (1/4 of previous)
+    private static final float moonOrbitSpeed = 0.0125f; // Moon's orbital speed around Earth (1/4 of previous)
     private static final float moonScaleFactor = 0.27f; // Real scale: Moon diameter is ~27% of Earth's
-    private static final float cloudRotationSpeed = 0.7f; // Clouds rotate faster than Earth due to wind patterns
+    private static final float sunScaleFactor = 2.5f; // Sun size relative to Earth (scaled for visibility)
+    private static final float cloudRotationSpeed = 0.0375f; // Clouds rotate faster than Earth due to wind patterns (1/4 of previous)
     private static final float cloudAlpha = 0.5f; // Cloud transparency
     private volatile float cameraAzimuth = (float) Math.PI;
     private volatile float cameraElevation = 0.0f;
@@ -39,12 +49,15 @@ public class Renderer implements GLSurfaceView.Renderer {
     private static final float minElevation = -1.4f;
     private static final float maxElevation = 1.4f;
     private static final float fullTurn = (float) (Math.PI * 2.0f);
-    private volatile boolean isOrbitingMoon = false;
+    private static final float MIN_CAMERA_DISTANCE = 0.5f; // Minimum distance to prevent camera collision (reduced for more zoom on Earth)
+    private volatile int cameraTarget = 0; // 0=Earth, 1=Sun, 2=Moon
     private volatile boolean isTransitioning = false;
     private volatile float transitionProgress = 0.0f;
-    private static final float TRANSITION_SPEED = 0.015f;
+    private static final float TRANSITION_SPEED = 0.02f;
     private final float[] backgroundMatrix = new float[16];
     private float motionBlurIntensity = 0.0f;
+    private final float[] lightDirection = new float[3];
+    private final float[] lightColor = new float[]{1.2f, 1.1f, 0.9f}; // Warm sunlight color
 
     // Initialize the renderer with context and set up identity matrices
     public Renderer(Context context) {
@@ -52,6 +65,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.setIdentityM(earthRotationMatrix, 0);
         Matrix.setIdentityM(moonRotationMatrix, 0);
         Matrix.setIdentityM(moonModelMatrix, 0);
+        Matrix.setIdentityM(sunModelMatrix, 0);
     }
 
     // Render a single frame: update rotations, handle transitions, and draw all objects
@@ -62,19 +76,63 @@ public class Renderer implements GLSurfaceView.Renderer {
         updateEarthRotation();
         updateMoonRotation();
         updateCloudRotation();
+        updateEarthOrbit();
+        updateMoonOrbit();
 
         if (isTransitioning) {
             updateTransition();
         }
 
-        // Calculate camera target: always look at (0,0,0) - objects move around this point
-        // When orbiting Earth: Earth at (0,0,0), Moon at (0,0,moonOffset)
-        // When orbiting Moon: Moon at (0,0,0), Earth at (0,0,-moonOffset)
-        float cameraTargetX = 0.0f;
-        float cameraTargetY = 0.0f;
-        float cameraTargetZ = 0.0f;
+        // Calculate camera target based on current focus
+        float[] targetPos = getCameraTargetPosition();
+        float cameraTargetX = targetPos[0];
+        float cameraTargetY = targetPos[1];
+        float cameraTargetZ = targetPos[2];
 
+        // Calculate camera position with collision detection
         float cameraDistance = baseCameraDistance / zoomScale;
+        // Prevent camera from getting too close (collision detection)
+        if (cameraTarget == 0) { // Earth
+            // Calculate minimum safe distance: Earth radius (1.0) * zoomScale + safety margin
+            float earthRadius = zoomScale;
+            float minDistance = earthRadius + MIN_CAMERA_DISTANCE;
+            if (cameraDistance < minDistance) {
+                cameraDistance = minDistance;
+                // Also limit zoom scale to prevent getting too close
+                float maxZoomForDistance = baseCameraDistance / minDistance;
+                if (zoomScale > maxZoomForDistance) {
+                    zoomScale = maxZoomForDistance;
+                }
+            }
+        } else if (cameraTarget == 1) { // Sun
+            // Prevent camera from getting inside Sun
+            float sunRadius = sunScaleFactor * zoomScale;
+            float minDistance = sunRadius + 0.5f;
+            if (cameraDistance < minDistance) {
+                cameraDistance = minDistance;
+                // Also limit zoom scale to prevent getting too close
+                float maxZoomForDistance = baseCameraDistance / minDistance;
+                if (zoomScale > maxZoomForDistance) {
+                    zoomScale = maxZoomForDistance;
+                }
+            }
+        } else if (cameraTarget == 2) { // Moon
+            // Prevent camera from getting inside Moon - apply same fix as Earth
+            // Reduce max zoom by 20% (multiply by 0.8)
+            float moonRadius = moonScaleFactor * zoomScale;
+            float minDistance = moonRadius + 0.3f;
+            // Apply 20% reduction to max zoom
+            float adjustedMinDistance = minDistance * 1.25f; // Increase min distance by 25% (equivalent to 20% zoom reduction)
+            if (cameraDistance < adjustedMinDistance) {
+                cameraDistance = adjustedMinDistance;
+                // Also limit zoom scale to prevent getting too close (with 20% reduction)
+                float maxZoomForDistance = (baseCameraDistance / adjustedMinDistance) * 0.8f;
+                if (zoomScale > maxZoomForDistance) {
+                    zoomScale = maxZoomForDistance;
+                }
+            }
+        }
+
         float x = cameraTargetX + (float) (cameraDistance * Math.cos(cameraElevation) * Math.sin(cameraAzimuth));
         float y = cameraTargetY + (float) (cameraDistance * Math.sin(cameraElevation));
         float z = cameraTargetZ + (float) (cameraDistance * Math.cos(cameraElevation) * Math.cos(cameraAzimuth));
@@ -89,6 +147,9 @@ public class Renderer implements GLSurfaceView.Renderer {
 
         // Draw background space
         drawBackground();
+
+        // Draw the Sun first (at center, always visible)
+        drawSun();
 
         // Draw the Earth with motion blur during transition, otherwise draw normally
         float currentBlurIntensity = motionBlurIntensity;
@@ -122,6 +183,9 @@ public class Renderer implements GLSurfaceView.Renderer {
         moonTexture = TextureHelper.loadTexture(context, R.drawable.moon_texture);
         backgroundTexture = TextureHelper.loadTexture(context, R.drawable.milky_way);
         cloudTexture = TextureHelper.loadTexture(context, R.drawable.earth_clouds);
+        sunTexture = TextureHelper.loadTexture(context, R.drawable.sun_texture);
+        earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.earth_specular_map);
+        earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
     }
 
     // Update viewport and projection matrix when surface size changes
@@ -150,78 +214,133 @@ public class Renderer implements GLSurfaceView.Renderer {
         cloudAngle += cloudRotationSpeed;
     }
 
-    // Calculate Earth's Z position based on current orbit state and transition progress
-    private float calculateEarthZPosition() {
-        float currentProgress = transitionProgress;
-        boolean currentlyTransitioning = isTransitioning;
-        boolean currentlyOrbitingMoon = isOrbitingMoon;
-        if (currentlyTransitioning) {
-            // During transition, interpolate Earth position between start and end positions
-            float startZ = currentlyOrbitingMoon ? -moonOffset : 0.0f;
-            float endZ = currentlyOrbitingMoon ? 0.0f : -moonOffset;
-            return startZ + (endZ - startZ) * currentProgress;
-        } else {
-            // After transition: if orbiting Moon, Earth is at -moonOffset; if orbiting Earth, Earth is at center
-            return currentlyOrbitingMoon ? -moonOffset : 0.0f;
+    // Update Earth's orbit around the Sun
+    private void updateEarthOrbit() {
+        earthOrbitAngle += earthOrbitSpeed;
+        if (earthOrbitAngle > fullTurn) {
+            earthOrbitAngle -= fullTurn;
         }
     }
 
-    // Calculate Moon's Z position based on current orbit state and transition progress
-    private float calculateMoonZPosition() {
-        float currentProgress = transitionProgress;
-        boolean currentlyTransitioning = isTransitioning;
-        boolean currentlyOrbitingMoon = isOrbitingMoon;
-        if (currentlyTransitioning) {
-            // During transition, interpolate Moon position between start and end positions
-            float startZ = currentlyOrbitingMoon ? 0.0f : moonOffset;
-            float endZ = currentlyOrbitingMoon ? moonOffset : 0.0f;
-            return startZ + (endZ - startZ) * currentProgress;
-        } else {
-            // After transition: if orbiting Earth, Moon is at moonOffset; if orbiting Moon, Moon is at center
-            return currentlyOrbitingMoon ? 0.0f : moonOffset;
+    // Update Moon's orbit around Earth
+    private void updateMoonOrbit() {
+        moonOrbitAngle += moonOrbitSpeed;
+        if (moonOrbitAngle > fullTurn) {
+            moonOrbitAngle -= fullTurn;
         }
+    }
+
+    // Get Earth's position in world space (orbiting around Sun)
+    private float[] getEarthPosition() {
+        float x = (float) (earthOrbitRadius * Math.cos(earthOrbitAngle));
+        float y = 0.0f;
+        float z = (float) (earthOrbitRadius * Math.sin(earthOrbitAngle));
+        return new float[]{x, y, z};
+    }
+
+    // Get Moon's position in world space (orbiting around Earth)
+    private float[] getMoonPosition() {
+        float[] earthPos = getEarthPosition();
+        float moonX = earthPos[0] + (float) (moonOffset * Math.cos(moonOrbitAngle));
+        float moonY = earthPos[1];
+        float moonZ = earthPos[2] + (float) (moonOffset * Math.sin(moonOrbitAngle));
+        return new float[]{moonX, moonY, moonZ};
+    }
+
+    // Get camera target position based on current focus
+    private float[] getCameraTargetPosition() {
+        return switch (cameraTarget) {
+            case 0 -> // Earth
+                    getEarthPosition();
+            case 1 -> // Sun
+                    new float[]{0.0f, 0.0f, 0.0f};
+            case 2 -> // Moon
+                    getMoonPosition();
+            default -> getEarthPosition();
+        };
+    }
+
+    // Calculate light direction from Sun to Earth
+    private void updateLightDirection() {
+        float[] earthPos = getEarthPosition();
+        // Light direction is from Sun (0,0,0) to Earth
+        lightDirection[0] = earthPos[0];
+        lightDirection[1] = earthPos[1];
+        lightDirection[2] = earthPos[2];
+        // Normalize
+        float length = (float) Math.sqrt(lightDirection[0] * lightDirection[0] +
+                lightDirection[1] * lightDirection[1] +
+                lightDirection[2] * lightDirection[2]);
+        if (length > 0.001f) {
+            lightDirection[0] /= length;
+            lightDirection[1] /= length;
+            lightDirection[2] /= length;
+        }
+    }
+
+    // Draw the Sun at the center
+    private void drawSun() {
+        Matrix.setIdentityM(sunModelMatrix, 0);
+        Matrix.scaleM(sunModelMatrix, 0, zoomScale * sunScaleFactor, zoomScale * sunScaleFactor, zoomScale * sunScaleFactor);
+
+        Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
+        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, sunModelMatrix, 0);
+
+        // Draw Sun with glow effect
+        float glowIntensity = 0.5f + (float) (Math.sin(System.currentTimeMillis() / 1000.0) * 0.2);
+        sphere.drawSun(sunTexture, mvpMatrix, glowIntensity);
     }
 
     // Draw the Earth sphere with current rotation and position
     private void drawEarth() {
+        // Update light direction
+        updateLightDirection();
+
         // Compute the rotation for the Earth
         Matrix.setRotateM(earthRotationMatrix, 0, earthAngle, 0.0f, 1.0f, 0.0f);
 
-        // Compute the final MVP matrix for the Earth
-        Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthRotationMatrix, 0);
+        // Get Earth's position in world space
+        float[] earthPos = getEarthPosition();
 
-        // Position Earth: interpolate during transition
+        // Position Earth in world space
         Matrix.setIdentityM(earthModelMatrix, 0);
-        float earthZ = calculateEarthZPosition();
-        if (earthZ != 0.0f) {
-            Matrix.translateM(earthModelMatrix, 0, 0.0f, 0.0f, earthZ);
-        }
+        Matrix.translateM(earthModelMatrix, 0, earthPos[0], earthPos[1], earthPos[2]);
         Matrix.scaleM(earthModelMatrix, 0, zoomScale, zoomScale, zoomScale);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthModelMatrix, 0);
 
-        // Draw the Earth with cloud overlay
+        // Compute MVP matrix
+        Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
+        float[] tempMatrix = new float[16];
+        Matrix.multiplyMM(tempMatrix, 0, earthModelMatrix, 0, earthRotationMatrix, 0);
+        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
+
+        // Draw the Earth with specular, normal maps, and lighting
         float cloudRotationDegrees = cloudAngle - earthAngle;
-        sphere.drawEarth(earthTexture, cloudTexture, cloudRotationDegrees, cloudAlpha, mvpMatrix);
+        sphere.drawEarth(earthTexture, cloudTexture, earthSpecularTexture, earthNormalTexture,
+                cloudRotationDegrees, cloudAlpha, mvpMatrix, earthModelMatrix,
+                lightDirection, lightColor);
     }
 
     // Draw the Earth sphere with motion blur effect during transition
     private void drawEarthWithBlur() {
+        // Update light direction
+        updateLightDirection();
+
         // Compute the rotation for the Earth
         Matrix.setRotateM(earthRotationMatrix, 0, earthAngle, 0.0f, 1.0f, 0.0f);
 
-        // Compute the final MVP matrix for the Earth
-        Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthRotationMatrix, 0);
+        // Get Earth's position in world space
+        float[] earthPos = getEarthPosition();
 
-        // Position Earth: interpolate during transition
+        // Position Earth in world space
         Matrix.setIdentityM(earthModelMatrix, 0);
-        float earthZ = calculateEarthZPosition();
-        if (earthZ != 0.0f) {
-            Matrix.translateM(earthModelMatrix, 0, 0.0f, 0.0f, earthZ);
-        }
+        Matrix.translateM(earthModelMatrix, 0, earthPos[0], earthPos[1], earthPos[2]);
         Matrix.scaleM(earthModelMatrix, 0, zoomScale, zoomScale, zoomScale);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, earthModelMatrix, 0);
+
+        // Compute MVP matrix
+        Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
+        float[] tempMatrix = new float[16];
+        Matrix.multiplyMM(tempMatrix, 0, earthModelMatrix, 0, earthRotationMatrix, 0);
+        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
 
         // Draw the Earth with motion blur and cloud overlay
         float currentBlurIntensity = motionBlurIntensity;
@@ -234,17 +353,18 @@ public class Renderer implements GLSurfaceView.Renderer {
         // Compute the rotation for the Moon
         Matrix.setRotateM(moonRotationMatrix, 0, moonAngle, 0.0f, 1.0f, 0.0f);
 
-        // Position Moon: interpolate during transition
+        // Get Moon's position in world space
+        float[] moonPos = getMoonPosition();
+
+        // Position Moon in world space
         Matrix.setIdentityM(moonModelMatrix, 0);
-        float moonZ = calculateMoonZPosition();
-        if (moonZ != 0.0f) {
-            Matrix.translateM(moonModelMatrix, 0, 0.0f, 0.0f, moonZ);
-        }
+        Matrix.translateM(moonModelMatrix, 0, moonPos[0], moonPos[1], moonPos[2]);
         Matrix.scaleM(moonModelMatrix, 0, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor);
 
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, moonRotationMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, moonModelMatrix, 0);
+        float[] tempMatrix = new float[16];
+        Matrix.multiplyMM(tempMatrix, 0, moonModelMatrix, 0, moonRotationMatrix, 0);
+        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
 
         // Draw the Moon
         sphere.drawMoon(moonTexture, mvpMatrix);
@@ -255,31 +375,58 @@ public class Renderer implements GLSurfaceView.Renderer {
         // Compute the rotation for the Moon
         Matrix.setRotateM(moonRotationMatrix, 0, moonAngle, 0.0f, 1.0f, 0.0f);
 
-        // Position Moon: interpolate during transition
+        // Get Moon's position in world space
+        float[] moonPos = getMoonPosition();
+
+        // Position Moon in world space
         Matrix.setIdentityM(moonModelMatrix, 0);
-        float moonZ = calculateMoonZPosition();
-        if (moonZ != 0.0f) {
-            Matrix.translateM(moonModelMatrix, 0, 0.0f, 0.0f, moonZ);
-        }
+        Matrix.translateM(moonModelMatrix, 0, moonPos[0], moonPos[1], moonPos[2]);
         Matrix.scaleM(moonModelMatrix, 0, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor);
 
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, moonRotationMatrix, 0);
-        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, moonModelMatrix, 0);
+        float[] tempMatrix = new float[16];
+        Matrix.multiplyMM(tempMatrix, 0, moonModelMatrix, 0, moonRotationMatrix, 0);
+        Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
 
         // Draw the Moon with motion blur
         float currentBlurIntensity = motionBlurIntensity;
         sphere.drawMoonWithBlur(moonTexture, mvpMatrix, currentBlurIntensity);
     }
 
-    // Scale the zoom level and clamp it to valid range
+    // Scale the zoom level and clamp it to valid range with collision detection
     public void scaleSphere(float scaleFactor) {
-        zoomScale *= scaleFactor;
-        if (zoomScale < minScale) {
-            zoomScale = minScale;
-        } else if (zoomScale > maxScale) {
-            zoomScale = maxScale;
+        float newZoomScale = zoomScale * scaleFactor;
+
+        // Apply collision detection based on current camera target
+        if (cameraTarget == 0) { // Earth
+            float earthRadius = 1.0f;
+            float minDistance = earthRadius + MIN_CAMERA_DISTANCE;
+            float maxZoomForDistance = baseCameraDistance / minDistance;
+            if (newZoomScale > maxZoomForDistance) {
+                newZoomScale = maxZoomForDistance;
+            }
+        } else if (cameraTarget == 1) { // Sun
+            float minDistance = sunScaleFactor + 0.5f;
+            float maxZoomForDistance = baseCameraDistance / minDistance;
+            if (newZoomScale > maxZoomForDistance) {
+                newZoomScale = maxZoomForDistance;
+            }
+        } else if (cameraTarget == 2) { // Moon
+            // Apply same collision fix as Earth - limit zoom to prevent camera inside Moon
+            // Reduce max zoom by 20% (multiply by 0.8)
+            float minDistance = moonScaleFactor + 0.3f;
+            // Apply 20% reduction to max zoom
+            float adjustedMinDistance = minDistance * 1.25f; // Increase min distance by 25% (equivalent to 20% zoom reduction)
+            float maxZoomForDistance = (baseCameraDistance / adjustedMinDistance) * 0.8f;
+            if (newZoomScale > maxZoomForDistance) {
+                newZoomScale = maxZoomForDistance;
+            }
         }
+
+        // Clamp to general min/max scale
+        if (newZoomScale < minScale) {
+            zoomScale = minScale;
+        } else zoomScale = Math.min(newZoomScale, maxScale);
     }
 
     // Set camera angles for orbiting around the current target
@@ -288,46 +435,31 @@ public class Renderer implements GLSurfaceView.Renderer {
         cameraElevation = clampElevation(elevation);
     }
 
-    // Start transition to orbit the Moon
-    public synchronized void transitionToMoon() {
-        if (!isTransitioning && !isOrbitingMoon) {
+    // Cycle camera target: Earth → Sun → Moon → Earth
+    public synchronized void cycleCameraTarget(boolean swipeLeft) {
+        if (!isTransitioning) {
             isTransitioning = true;
+            if (swipeLeft) {
+                // Swipe left: Earth → Sun → Moon → Earth
+                cameraTarget = (cameraTarget + 1) % 3;
+            } else {
+                // Swipe right: Earth → Moon → Sun → Earth
+                cameraTarget = (cameraTarget + 2) % 3;
+            }
             transitionProgress = 0.0f;
-        }
-    }
-
-    // Start transition to orbit the Earth
-    public synchronized void transitionToEarth() {
-        if (!isTransitioning && isOrbitingMoon) {
-            isTransitioning = true;
-            transitionProgress = 1.0f;
         }
     }
 
     // Update transition progress and motion blur intensity during camera movement
     private synchronized void updateTransition() {
-        if (!isOrbitingMoon) {
-            float newProgress = transitionProgress + TRANSITION_SPEED;
-            if (newProgress >= 1.0f) {
-                transitionProgress = 1.0f;
-                isOrbitingMoon = true;
-                isTransitioning = false;
-                motionBlurIntensity = 0.0f;
-            } else {
-                transitionProgress = newProgress;
-                motionBlurIntensity = (float) Math.sin(transitionProgress * Math.PI) * 1.2f;
-            }
+        float newProgress = transitionProgress + TRANSITION_SPEED;
+        if (newProgress >= 1.0f) {
+            transitionProgress = 1.0f;
+            isTransitioning = false;
+            motionBlurIntensity = 0.0f;
         } else {
-            float newProgress = transitionProgress - TRANSITION_SPEED;
-            if (newProgress <= 0.0f) {
-                transitionProgress = 0.0f;
-                isOrbitingMoon = false;
-                isTransitioning = false;
-                motionBlurIntensity = 0.0f;
-            } else {
-                transitionProgress = newProgress;
-                motionBlurIntensity = (float) Math.sin(transitionProgress * Math.PI) * 1.2f;
-            }
+            transitionProgress = newProgress;
+            motionBlurIntensity = (float) Math.sin(transitionProgress * Math.PI) * 1.2f;
         }
     }
 
@@ -337,11 +469,6 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.scaleM(backgroundMatrix, 0, 50.0f, 50.0f, 50.0f);
         Matrix.multiplyMM(backgroundMatrix, 0, mvpMatrix, 0, backgroundMatrix, 0);
         sphere.drawBackground(backgroundTexture, backgroundMatrix);
-    }
-
-    // Check if currently orbiting the Moon
-    public boolean isOrbitingMoon() {
-        return isOrbitingMoon;
     }
 
     // Clamp elevation angle to valid range to prevent camera from going too high or low
