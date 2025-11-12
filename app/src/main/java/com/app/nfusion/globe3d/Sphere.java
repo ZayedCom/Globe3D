@@ -25,6 +25,7 @@ public class Sphere {
     private int textureCoordinateHandler; // Shader attribute location for texture coordinates
     private int normalHandler; // Shader attribute location for vertex normals
     private int earthTextureUniformHandler; // Shader uniform location for Earth texture
+    private int earthNightTextureUniformHandler; // Shader uniform location for Earth night texture
     private int moonTextureUniformHandler; // Shader uniform location for Moon texture
     private int backgroundTextureUniformHandler; // Shader uniform location for background texture
     private int motionBlurTextureUniformHandler; // Shader uniform location for motion blur texture
@@ -105,6 +106,7 @@ public class Sphere {
         String earthFragmentShaderCode =
                 "precision mediump float;" +                                                            // Set floating-point precision
                         "uniform sampler2D uEarthTexture;" +                                            // Uniform sampler for earth texture
+                        "uniform sampler2D uEarthNightTexture;" +                                       // Uniform sampler for earth night texture
                         "uniform sampler2D uCloudTexture;" +                                            // Uniform sampler for cloud texture
                         "uniform sampler2D uSpecularTexture;" +                                         // Uniform sampler for specular map
                         "uniform sampler2D uNormalTexture;" +                                           // Uniform sampler for normal map
@@ -120,6 +122,7 @@ public class Sphere {
                         "  float rotatedU = mod(vTexCoord.x + rotationOffset, 1.0);" +                  // Wrap horizontally for seamless clouds
                         "  vec2 rotatedCoord = vec2(rotatedU, vTexCoord.y);" +                          // Use rotated horizontal coordinate
                         "  vec4 earthColor = texture2D(uEarthTexture, vTexCoord);" +                     // Sample earth texture
+                        "  vec4 earthNightColor = texture2D(uEarthNightTexture, vTexCoord);" +          // Sample earth night texture
                         "  vec4 cloudSample = texture2D(uCloudTexture, rotatedCoord);" +                 // Sample cloud texture
                         "  vec4 specularSample = texture2D(uSpecularTexture, vTexCoord);" +             // Sample specular map
                         "  vec4 normalSample = texture2D(uNormalTexture, vTexCoord);" +                  // Sample normal map
@@ -127,16 +130,23 @@ public class Sphere {
                         "  vec3 normalMap = normalize(normalSample.rgb * 2.0 - 1.0);" +                 // Unpack normal map from [0,1] to [-1,1]
                         "  normal = normalize(normal + normalMap * 0.5);" +                             // Blend geometry normal with normal map
                         "  vec3 lightDir = normalize(-uLightDirection);" +                               // Normalize light direction
-                        "  float NdotL = max(dot(normal, lightDir), 0.0);" +                             // Calculate diffuse lighting
+                        "  float NdotL = dot(normal, lightDir);" +                                      // Calculate dot product (can be negative for shadow)
+                        "  float dayNightBlend = smoothstep(-0.3, 0.2, NdotL);" +                       // Smooth transition between day and night (shadow area uses night texture)
+                        "  vec3 dayColor = earthColor.rgb;" +                                           // Day texture color
+                        "  vec3 nightColor = earthNightColor.rgb * 2.5;" +                              // Night texture color - boosted for visibility
+                        "  vec3 baseColor = mix(nightColor, dayColor, dayNightBlend);" +                // Blend day/night textures based on light
+                        "  float litNdotL = max(NdotL, 0.0);" +                                         // Clamped for lighting calculations
+                        "  float nightFactor = 1.0 - dayNightBlend;" +                                 // How much we're in night (0 = day, 1 = night)
+                        "  float ambient = mix(0.15, 0.4, nightFactor);" +                              // Higher ambient on night side for visibility
                         "  vec3 viewDir = normalize(-vPosition);" +                                     // View direction (simplified)
                         "  vec3 reflectDir = reflect(-lightDir, normal);" +                             // Reflection direction
                         "  float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);" +            // Specular highlight
                         "  float specularMask = specularSample.r;" +                                    // Use specular map to mask reflections
-                        "  specular *= specularMask;" +                                                 // Apply specular mask (oceans reflect, land doesn't)
+                        "  specular *= specularMask * dayNightBlend;" +                                 // Apply specular mask and only on day side
                         "  float cloudMask = cloudSample.r;" +                                          // Use red channel as intensity
                         "  float blendFactor = cloudMask * uCloudAlpha;" +                              // Compute blend factor with alpha
                         "  vec3 cloudColor = vec3(cloudMask);" +                                        // Convert to grayscale color
-                        "  vec3 litColor = earthColor.rgb * NdotL * uLightColor;" +                     // Apply diffuse lighting
+                        "  vec3 litColor = baseColor * (ambient + litNdotL * uLightColor);" +           // Apply ambient + diffuse lighting
                         "  litColor += specular * uLightColor * 0.5;" +                                 // Add specular highlights
                         "  vec3 finalColor = mix(litColor, cloudColor, clamp(blendFactor, 0.0, 1.0));" + // Blend with clouds
                         "  gl_FragColor = vec4(finalColor, earthColor.a);" +                            // Output final color
@@ -243,6 +253,7 @@ public class Sphere {
         textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
         normalHandler = GLES32.glGetAttribLocation(programEarth, "aNormal");
         earthTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthTexture");
+        earthNightTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uEarthNightTexture");
         earthCloudTextureUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudTexture");
         earthCloudRotationUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudRotation");
         earthCloudAlphaUniformHandler = GLES32.glGetUniformLocation(programEarth, "uCloudAlpha");
@@ -343,7 +354,7 @@ public class Sphere {
     }
 
     // Draw the Earth using the specified Earth and cloud textures and MVP matrix
-    public void drawEarth(int earthTexture, int cloudTexture, int specularTexture, int normalTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix, float[] modelMatrix, float[] lightDirection, float[] lightColor) {
+    public void drawEarth(int earthTexture, int earthNightTexture, int cloudTexture, int specularTexture, int normalTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix, float[] modelMatrix, float[] lightDirection, float[] lightColor) {
         GLES32.glUseProgram(programEarth);
 
         GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
@@ -358,6 +369,10 @@ public class Sphere {
         GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
         GLES32.glUniform1i(earthTextureUniformHandler, 0);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE2);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthNightTexture);
+        GLES32.glUniform1i(earthNightTextureUniformHandler, 2);
 
         GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
@@ -464,66 +479,6 @@ public class Sphere {
         GLES32.glDisableVertexAttribArray(positionHandler);
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
         GLES32.glEnable(GLES32.GL_DEPTH_TEST);
-    }
-
-    // Draw the Earth with motion blur effect using the motion blur shader program
-    public void drawEarthWithBlur(int earthTexture, int cloudTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix, float blurIntensity) {
-        GLES32.glUseProgram(programMotionBlur);
-
-        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
-        GLES32.glEnableVertexAttribArray(positionHandler);
-
-        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
-        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
-
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthTexture);
-        GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
-
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
-        GLES32.glUniform1i(motionBlurCloudTextureUniformHandler, 1);
-
-        GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
-        GLES32.glUniform1f(motionBlurCloudRotationUniformHandler, cloudRotation);
-        GLES32.glUniform1f(motionBlurCloudAlphaUniformHandler, cloudAlpha);
-
-        GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
-
-        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
-
-        GLES32.glDisableVertexAttribArray(positionHandler);
-        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
-    }
-
-    // Draw the Moon with motion blur effect using the motion blur shader program
-    public void drawMoonWithBlur(int moonTexture, float[] mvpMatrix, float blurIntensity) {
-        GLES32.glUseProgram(programMotionBlur);
-
-        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
-        GLES32.glEnableVertexAttribArray(positionHandler);
-
-        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
-        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
-
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
-        GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
-
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, moonTexture);
-        GLES32.glUniform1i(motionBlurCloudTextureUniformHandler, 1);
-
-        GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
-        GLES32.glUniform1f(motionBlurCloudRotationUniformHandler, 0.0f);
-        GLES32.glUniform1f(motionBlurCloudAlphaUniformHandler, 0.0f);
-
-        GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
-
-        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
-
-        GLES32.glDisableVertexAttribArray(positionHandler);
-        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
     }
 
     // Draw the Sun using the specified Sun texture and MVP matrix with glow effect

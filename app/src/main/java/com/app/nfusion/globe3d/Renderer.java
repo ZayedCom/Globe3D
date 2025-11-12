@@ -29,6 +29,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int cloudTexture; // Earth cloud layer texture ID
     private int earthSpecularTexture; // Earth specular reflection map ID
     private int earthNormalTexture; // Earth normal map for surface detail ID
+    private int earthNightTexture; // Earth night lights texture ID
     private final float[] mvpMatrix = new float[16]; // Model-view-projection transformation matrix
     private final float[] earthViewMatrix = new float[16]; // Camera view transformation matrix
     private final float[] earthProjectionMatrix = new float[16]; // Perspective projection matrix
@@ -368,6 +369,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         cloudTexture = TextureHelper.loadTexture(context, R.drawable.earth_clouds);
         earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.earth_specular_map);
         earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
+        earthNightTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture_night);
 
         initOrbitRendering();
 
@@ -786,7 +788,7 @@ public class Renderer implements GLSurfaceView.Renderer {
 
         // Draw the Earth with specular, normal maps, and lighting
         float cloudRotationDegrees = cloudAngle - earthAngle;
-        sphere.drawEarth(earthTexture, cloudTexture, earthSpecularTexture, earthNormalTexture,
+        sphere.drawEarth(earthTexture, earthNightTexture, cloudTexture, earthSpecularTexture, earthNormalTexture,
                 cloudRotationDegrees, cloudAlpha, mvpMatrix, earthModelMatrix,
                 lightDirection, lightColor);
     }
