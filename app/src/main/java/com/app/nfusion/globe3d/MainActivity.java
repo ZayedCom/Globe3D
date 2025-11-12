@@ -20,6 +20,8 @@ import java.util.Objects;
 
 public class MainActivity extends Activity {
 
+    private View loadingScreen; // Loading screen overlay
+    private ParticleView particleView; // Particle animation view
     private SurfaceView glSurfaceView; // OpenGL surface for 3D rendering
     private Renderer renderer; // Manages the 3D scene and rendering
     private TextView tvPlanetName; // Displays current planet name at top center
@@ -29,8 +31,6 @@ public class MainActivity extends Activity {
     private TextView tvPerformanceInfo; // Shows FPS, triangle count, and memory usage
     private final Handler handler = new Handler(Looper.getMainLooper()); // Updates UI on main thread
     private boolean performanceInfoVisible = false; // Tracks if performance info is shown
-    private View loadingScreen; // Loading screen overlay
-    private ParticleView particleView; // Particle animation view
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
