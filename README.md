@@ -1,17 +1,27 @@
 # Globe 3D
 
-![alt text](https://github.com/ZayedCom/Globe3D/blob/master/app/src/main/res/drawable/earth.png)
+![alt text](https://github.com/ZayedCom/Globe3D/blob/master/app/src/main/res/drawable/ic_earth.png)
 
-This Android application showcases a 3D globe rendered using OpenGL ES 3.2. The globe can be rotated using touch gestures, and it supports pinch-to-zoom for scaling.
-
-The demo utilizes a custom GLSurfaceView for rendering the 3D scene and includes a custom Renderer class for managing the OpenGL rendering pipeline.
+An immersive Android application that showcases a 3D solar system rendered using OpenGL ES 3.2. Explore multiple planets and celestial bodies with realistic textures, detailed information, and smooth interactions.
 
 # Features
-• 3D rendering of a textured globe using OpenGL ES 3.2.
+• 3D rendering of celestial bodies (Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus, Neptune) using OpenGL ES 3.2.
 
-• Touch gestures for rotating the globe.
+• Realistic textures for all planets, the Sun, and the Moon with Milky Way background.
 
-• Pinch-to-zoom functionality for scaling the globe.
+• Touch gestures for rotating celestial bodies.
+
+• Pinch-to-zoom functionality for scaling.
+
+• Swipe left or right to switch between planets with smooth camera transitions.
+
+• Detailed planet information dialog with comprehensive data including physical properties, orbital data, atmospheric characteristics, and exploration information.
+
+• Real-time planet name display showing the currently focused celestial body.
+
+• Performance monitoring overlay displaying FPS, triangle count, and memory usage.
+
+• Loading screen with animated particle effects.
 
 • Custom GLSurfaceView for OpenGL rendering.
 
@@ -27,15 +37,17 @@ To run the demo:
 • Build and run the app on an Android device or emulator.
 
 # Dependencies
-• Android SDK
+• Android SDK (Minimum: API 24, Target: API 36)
 
 • OpenGL ES 3.2
 
 • Gradle
+
+• AndroidX libraries (AppCompat, Material, Activity, ConstraintLayout)
 
 # License
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
 Zaid K. Al Qassar
 
-APP NFUSION 2024
+APP NFUSION 2025
