@@ -84,16 +84,17 @@ public class Renderer implements GLSurfaceView.Renderer {
     private float zoomScale = 1.0f; // Current zoom level multiplier
     private static final float minScale = 0.1f; // Minimum allowed zoom level
     private static final float maxScale = 5.0f; // Maximum allowed zoom level
-    // Orbit radii (scaled for visualization, Earth = 15.0)
-    private static final float mercuryOrbitRadius = 6.0f; // Distance from Sun to Mercury
-    private static final float venusOrbitRadius = 11.0f; // Distance from Sun to Venus
-    private static final float earthOrbitRadius = 15.0f; // Distance from Sun to Earth
-    private static final float marsOrbitRadius = 23.0f; // Distance from Sun to Mars
-    private static final float jupiterOrbitRadius = 50.0f; // Distance from Sun to Jupiter
-    private static final float saturnOrbitRadius = 90.0f; // Distance from Sun to Saturn
-    private static final float uranusOrbitRadius = 180.0f; // Distance from Sun to Uranus
-    private static final float neptuneOrbitRadius = 280.0f; // Distance from Sun to Neptune
-    private static final float moonOffset = 3.0f; // Distance from Earth to Moon
+
+    // Orbit radii (scaled for visualization, adjusted for larger Sun - sun radius is 5.25, scaled down proportionally)
+    private static final float mercuryOrbitRadius = 7.7f; // Distance from Sun to Mercury (safe distance from sun surface)
+    private static final float venusOrbitRadius = 14.0f; // Distance from Sun to Venus
+    private static final float earthOrbitRadius = 19.25f; // Distance from Sun to Earth
+    private static final float marsOrbitRadius = 29.4f; // Distance from Sun to Mars
+    private static final float jupiterOrbitRadius = 64.05f; // Distance from Sun to Jupiter
+    private static final float saturnOrbitRadius = 115.5f; // Distance from Sun to Saturn
+    private static final float uranusOrbitRadius = 231.0f; // Distance from Sun to Uranus
+    private static final float neptuneOrbitRadius = 359.45f; // Distance from Sun to Neptune
+    private static final float moonOffset = 1.05f; // Distance from Earth to Moon
 
     // Rotation speeds per frame
     private static final float sunRotationSpeed = 0.01f; // Sun rotation speed per frame
@@ -119,17 +120,17 @@ public class Renderer implements GLSurfaceView.Renderer {
     private static final float neptuneOrbitSpeed = 0.0001f; // Neptune orbital speed around Sun per frame
     private static final float moonOrbitSpeed = 0.0125f; // Moon orbital speed around Earth per frame
 
-    // Scale factors relative to Earth (Earth = 1.0)
-    private static final float sunScaleFactor = 2.5f; // Sun size relative to Earth
-    private static final float mercuryScaleFactor = 0.38f; // Mercury size relative to Earth
-    private static final float venusScaleFactor = 0.95f; // Venus size relative to Earth
-    private static final float earthScaleFactor = 1.0f; // Earth size (reference)
-    private static final float marsScaleFactor = 0.53f; // Mars size relative to Earth
-    private static final float jupiterScaleFactor = 11.2f; // Jupiter size relative to Earth
-    private static final float saturnScaleFactor = 9.4f; // Saturn size relative to Earth
-    private static final float uranusScaleFactor = 4.0f; // Uranus size relative to Earth
-    private static final float neptuneScaleFactor = 3.9f; // Neptune size relative to Earth
-    private static final float moonScaleFactor = 0.27f; // Moon size relative to Earth
+    // Scale factors relative to Earth (Earth = 1.0) - scaled down proportionally
+    private static final float sunScaleFactor = 5.25f; // Sun size relative to Earth (bigger than Jupiter)
+    private static final float mercuryScaleFactor = 0.133f; // Mercury size relative to Earth
+    private static final float venusScaleFactor = 0.333f; // Venus size relative to Earth
+    private static final float earthScaleFactor = 0.35f; // Earth size (reference, scaled down)
+    private static final float marsScaleFactor = 0.186f; // Mars size relative to Earth
+    private static final float jupiterScaleFactor = 3.92f; // Jupiter size relative to Earth
+    private static final float saturnScaleFactor = 3.29f; // Saturn size relative to Earth
+    private static final float uranusScaleFactor = 1.4f; // Uranus size relative to Earth
+    private static final float neptuneScaleFactor = 1.365f; // Neptune size relative to Earth
+    private static final float moonScaleFactor = 0.095f; // Moon size relative to Earth
     private static final float cloudAlpha = 0.5f; // Cloud layer transparency level
     private volatile float cameraAzimuth = (float) Math.PI; // Camera horizontal rotation angle
     private volatile float cameraElevation = 0.0f; // Camera vertical tilt angle
@@ -287,10 +288,11 @@ public class Renderer implements GLSurfaceView.Renderer {
 
         // Calculate camera position with collision detection
         float cameraDistance = baseCameraDistance / zoomScale;
+
         // Prevent camera from getting too close (collision detection)
-        float scaleFactor = getScaleFactorForTarget(cameraTarget);
-        float radius = scaleFactor * zoomScale;
+        float radius = getScaleFactorForTarget(cameraTarget);
         float minDistance = radius + MIN_CAMERA_DISTANCE;
+
         if (cameraTarget == 4) { // Moon - reduce max zoom by 20%
             minDistance *= 1.25f;
         }
@@ -751,7 +753,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         // Compute the rotation for the Sun
         Matrix.setRotateM(sunRotationMatrix, 0, sunAngle, 0.0f, 1.0f, 0.0f);
         Matrix.setIdentityM(sunModelMatrix, 0);
-        Matrix.scaleM(sunModelMatrix, 0, zoomScale * sunScaleFactor, zoomScale * sunScaleFactor, zoomScale * sunScaleFactor);
+        Matrix.scaleM(sunModelMatrix, 0, sunScaleFactor, sunScaleFactor, sunScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
 
         float[] tempMatrix = new float[16];
@@ -778,7 +780,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         // Position Earth in world space
         Matrix.setIdentityM(earthModelMatrix, 0);
         Matrix.translateM(earthModelMatrix, 0, earthPos[0], earthPos[1], earthPos[2]);
-        Matrix.scaleM(earthModelMatrix, 0, zoomScale, zoomScale, zoomScale);
+        Matrix.scaleM(earthModelMatrix, 0, earthScaleFactor, earthScaleFactor, earthScaleFactor);
 
         // Compute MVP matrix
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
@@ -804,7 +806,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         // Position Moon in world space
         Matrix.setIdentityM(moonModelMatrix, 0);
         Matrix.translateM(moonModelMatrix, 0, moonPos[0], moonPos[1], moonPos[2]);
-        Matrix.scaleM(moonModelMatrix, 0, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor, zoomScale * moonScaleFactor);
+        Matrix.scaleM(moonModelMatrix, 0, moonScaleFactor, moonScaleFactor, moonScaleFactor);
 
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
@@ -821,7 +823,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] mercuryPos = getMercuryPosition();
         Matrix.setIdentityM(mercuryModelMatrix, 0);
         Matrix.translateM(mercuryModelMatrix, 0, mercuryPos[0], mercuryPos[1], mercuryPos[2]);
-        Matrix.scaleM(mercuryModelMatrix, 0, zoomScale * mercuryScaleFactor, zoomScale * mercuryScaleFactor, zoomScale * mercuryScaleFactor);
+        Matrix.scaleM(mercuryModelMatrix, 0, mercuryScaleFactor, mercuryScaleFactor, mercuryScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, mercuryModelMatrix, 0, mercuryRotationMatrix, 0);
@@ -835,7 +837,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] venusPos = getVenusPosition();
         Matrix.setIdentityM(venusModelMatrix, 0);
         Matrix.translateM(venusModelMatrix, 0, venusPos[0], venusPos[1], venusPos[2]);
-        Matrix.scaleM(venusModelMatrix, 0, zoomScale * venusScaleFactor, zoomScale * venusScaleFactor, zoomScale * venusScaleFactor);
+        Matrix.scaleM(venusModelMatrix, 0, venusScaleFactor, venusScaleFactor, venusScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, venusModelMatrix, 0, venusRotationMatrix, 0);
@@ -849,7 +851,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] marsPos = getMarsPosition();
         Matrix.setIdentityM(marsModelMatrix, 0);
         Matrix.translateM(marsModelMatrix, 0, marsPos[0], marsPos[1], marsPos[2]);
-        Matrix.scaleM(marsModelMatrix, 0, zoomScale * marsScaleFactor, zoomScale * marsScaleFactor, zoomScale * marsScaleFactor);
+        Matrix.scaleM(marsModelMatrix, 0, marsScaleFactor, marsScaleFactor, marsScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, marsModelMatrix, 0, marsRotationMatrix, 0);
@@ -863,7 +865,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] jupiterPos = getJupiterPosition();
         Matrix.setIdentityM(jupiterModelMatrix, 0);
         Matrix.translateM(jupiterModelMatrix, 0, jupiterPos[0], jupiterPos[1], jupiterPos[2]);
-        Matrix.scaleM(jupiterModelMatrix, 0, zoomScale * jupiterScaleFactor, zoomScale * jupiterScaleFactor, zoomScale * jupiterScaleFactor);
+        Matrix.scaleM(jupiterModelMatrix, 0, jupiterScaleFactor, jupiterScaleFactor, jupiterScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, jupiterModelMatrix, 0, jupiterRotationMatrix, 0);
@@ -877,7 +879,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] saturnPos = getSaturnPosition();
         Matrix.setIdentityM(saturnModelMatrix, 0);
         Matrix.translateM(saturnModelMatrix, 0, saturnPos[0], saturnPos[1], saturnPos[2]);
-        Matrix.scaleM(saturnModelMatrix, 0, zoomScale * saturnScaleFactor, zoomScale * saturnScaleFactor, zoomScale * saturnScaleFactor);
+        Matrix.scaleM(saturnModelMatrix, 0, saturnScaleFactor, saturnScaleFactor, saturnScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, saturnModelMatrix, 0, saturnRotationMatrix, 0);
@@ -891,7 +893,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] uranusPos = getUranusPosition();
         Matrix.setIdentityM(uranusModelMatrix, 0);
         Matrix.translateM(uranusModelMatrix, 0, uranusPos[0], uranusPos[1], uranusPos[2]);
-        Matrix.scaleM(uranusModelMatrix, 0, zoomScale * uranusScaleFactor, zoomScale * uranusScaleFactor, zoomScale * uranusScaleFactor);
+        Matrix.scaleM(uranusModelMatrix, 0, uranusScaleFactor, uranusScaleFactor, uranusScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, uranusModelMatrix, 0, uranusRotationMatrix, 0);
@@ -905,7 +907,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] neptunePos = getNeptunePosition();
         Matrix.setIdentityM(neptuneModelMatrix, 0);
         Matrix.translateM(neptuneModelMatrix, 0, neptunePos[0], neptunePos[1], neptunePos[2]);
-        Matrix.scaleM(neptuneModelMatrix, 0, zoomScale * neptuneScaleFactor, zoomScale * neptuneScaleFactor, zoomScale * neptuneScaleFactor);
+        Matrix.scaleM(neptuneModelMatrix, 0, neptuneScaleFactor, neptuneScaleFactor, neptuneScaleFactor);
         Matrix.multiplyMM(mvpMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, neptuneModelMatrix, 0, neptuneRotationMatrix, 0);
@@ -980,8 +982,8 @@ public class Renderer implements GLSurfaceView.Renderer {
     // Draw the background space texture as a large sphere surrounding the scene
     private void drawBackground() {
         Matrix.setIdentityM(backgroundMatrix, 0);
-        // Scale background to accommodate all planets (Neptune is at 280, so use 500 for safety margin)
-        Matrix.scaleM(backgroundMatrix, 0, 500.0f, 500.0f, 500.0f);
+        // Scale background to accommodate all planets (Neptune is at 359.45, so use 525 for safety margin)
+        Matrix.scaleM(backgroundMatrix, 0, 525.0f, 525.0f, 525.0f);
         Matrix.multiplyMM(backgroundMatrix, 0, mvpMatrix, 0, backgroundMatrix, 0);
         sphere.drawBackground(backgroundTexture, backgroundMatrix);
     }
@@ -989,8 +991,8 @@ public class Renderer implements GLSurfaceView.Renderer {
     // Draw the background space texture with motion blur effect during transitions
     private void drawBackgroundWithBlur() {
         Matrix.setIdentityM(backgroundMatrix, 0);
-        // Scale background to accommodate all planets (Neptune is at 280, so use 500 for safety margin)
-        Matrix.scaleM(backgroundMatrix, 0, 500.0f, 500.0f, 500.0f);
+        // Scale background to accommodate all planets (Neptune is at 359.45, so use 525 for safety margin)
+        Matrix.scaleM(backgroundMatrix, 0, 525.0f, 525.0f, 525.0f);
         Matrix.multiplyMM(backgroundMatrix, 0, mvpMatrix, 0, backgroundMatrix, 0);
         sphere.drawBackgroundWithBlur(backgroundTexture, backgroundMatrix, motionBlurIntensity);
     }
