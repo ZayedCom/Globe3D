@@ -4,6 +4,7 @@
     <!-- UI Strings -->
     <string name="planet_name_default">Earth</string>
     <string name="planet_information">Planet Information</string>
+    <string name="moon_information">Moon Information</string>
     <string name="performance_info">Performance Info</string>
     <string name="planet_info">Planet Info</string>
     <string name="fps_format">FPS: %.0f\nTriangles: %d\nMemory: %d MB</string>

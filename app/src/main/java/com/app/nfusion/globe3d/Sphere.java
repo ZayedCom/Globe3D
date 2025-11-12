@@ -49,9 +49,19 @@ public class Sphere {
     private FloatBuffer normalBuffer; // Buffer containing vertex normal vectors
     private int numIndices; // Total number of triangle indices for rendering
 
+    // Ring geometry buffers
+    private FloatBuffer ringVertexBuffer; // Buffer containing ring vertex positions
+    private FloatBuffer ringTexBuffer; // Buffer containing ring texture coordinates
+    private ShortBuffer ringIndexBuffer; // Buffer containing ring triangle indices
+    private int programRings; // OpenGL shader program ID for rendering rings
+    private int ringTextureUniformHandler; // Shader uniform location for ring texture
+    private int ringMatrixHandler; // Shader uniform location for ring MVP matrix
+    private int ringNumIndices; // Total number of ring triangle indices
+
     // Initialize the sphere geometry, shaders, and OpenGL programs
     public void init() {
         generateSphere();
+        generateRings();
 
         // Vertex shader code for rendering the sphere (basic version)
         String vertexShaderCode =
@@ -224,6 +234,21 @@ public class Sphere {
         int cloudFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, moonFragmentShaderCode);
         int motionBlurFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, motionBlurFragmentShaderCode);
 
+        // Fragment shader code for rings with alpha transparency
+        String ringFragmentShaderCode =
+                "precision mediump float;" +
+                        "uniform sampler2D uRingTexture;" +
+                        "varying vec2 vTexCoord;" +
+                        "void main() {" +
+                        "  vec4 ringColor = texture2D(uRingTexture, vTexCoord);" +
+                        "  if (ringColor.a < 0.01) {" +
+                        "    discard;" +
+                        "  }" +
+                        "  gl_FragColor = ringColor;" +
+                        "}";
+
+        int ringFragmentShader = loadShader(GLES32.GL_FRAGMENT_SHADER, ringFragmentShaderCode);
+
         programEarth = GLES32.glCreateProgram();
         GLES32.glAttachShader(programEarth, earthVertexShader);
         GLES32.glAttachShader(programEarth, earthFragmentShader);
@@ -248,6 +273,11 @@ public class Sphere {
         GLES32.glAttachShader(programMotionBlur, vertexShader);
         GLES32.glAttachShader(programMotionBlur, motionBlurFragmentShader);
         GLES32.glLinkProgram(programMotionBlur);
+
+        programRings = GLES32.glCreateProgram();
+        GLES32.glAttachShader(programRings, vertexShader);
+        GLES32.glAttachShader(programRings, ringFragmentShader);
+        GLES32.glLinkProgram(programRings);
 
         positionHandler = GLES32.glGetAttribLocation(programEarth, "aPosition");
         textureCoordinateHandler = GLES32.glGetAttribLocation(programEarth, "aTexCoord");
@@ -274,6 +304,8 @@ public class Sphere {
         matrixHandlerBackground = GLES32.glGetUniformLocation(programBackground, "uMVPMatrix");
         matrixHandlerMotionBlur = GLES32.glGetUniformLocation(programMotionBlur, "uMVPMatrix");
         matrixHandlerSun = GLES32.glGetUniformLocation(programSun, "uMVPMatrix");
+        ringTextureUniformHandler = GLES32.glGetUniformLocation(programRings, "uRingTexture");
+        ringMatrixHandler = GLES32.glGetUniformLocation(programRings, "uMVPMatrix");
     }
 
     // Load a shader of the specified type with the given code
@@ -353,6 +385,70 @@ public class Sphere {
         indexBuffer.put(indices).position(0);
     }
 
+    // Generate ring geometry (flat disc)
+    private void generateRings() {
+        int segments = 120; // Number of radial segments
+        int rings = 2; // Inner and outer ring
+
+        int numVertices = (segments + 1) * rings;
+        int numIndices = segments * (rings - 1) * 6;
+
+        float[] vertices = new float[3 * numVertices];
+        float[] texCoords = new float[2 * numVertices];
+        short[] indices = new short[numIndices];
+
+        float innerRadius = 1.2f; // Slightly larger than planet
+        float outerRadius = 2.0f; // Ring outer edge
+
+        int vertexIndex = 0;
+        int texIndex = 0;
+
+        for (int ring = 0; ring < rings; ring++) {
+            float radius = ring == 0 ? innerRadius : outerRadius;
+            for (int seg = 0; seg <= segments; seg++) {
+                float angle = seg * 2.0f * (float) Math.PI / segments;
+                float x = (float) (radius * Math.cos(angle));
+                float z = (float) (radius * Math.sin(angle));
+
+                vertices[vertexIndex++] = x;
+                vertices[vertexIndex++] = 0.0f;
+                vertices[vertexIndex++] = z;
+
+                // Texture coordinates
+                float u = seg / (float) segments;
+                float v = ring / (float) (rings - 1);
+                texCoords[texIndex++] = u;
+                texCoords[texIndex++] = v;
+            }
+        }
+
+        int index = 0;
+        for (int ring = 0; ring < rings - 1; ring++) {
+            for (int first = 0; first < segments; first++) {
+                int second = first + segments + 1;
+
+                indices[index++] = (short) first;
+                indices[index++] = (short) second;
+                indices[index++] = (short) (first + 1);
+
+                indices[index++] = (short) second;
+                indices[index++] = (short) (second + 1);
+                indices[index++] = (short) (first + 1);
+            }
+        }
+
+        ringNumIndices = index;
+
+        ringVertexBuffer = ByteBuffer.allocateDirect(vertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        ringVertexBuffer.put(vertices).position(0);
+
+        ringTexBuffer = ByteBuffer.allocateDirect(texCoords.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        ringTexBuffer.put(texCoords).position(0);
+
+        ringIndexBuffer = ByteBuffer.allocateDirect(indices.length * 2).order(ByteOrder.nativeOrder()).asShortBuffer();
+        ringIndexBuffer.put(indices).position(0);
+    }
+
     // Draw the Earth using the specified Earth and cloud textures and MVP matrix
     public void drawEarth(int earthTexture, int earthNightTexture, int cloudTexture, int specularTexture, int normalTexture, float cloudRotation, float cloudAlpha, float[] mvpMatrix, float[] modelMatrix, float[] lightDirection, float[] lightColor) {
         GLES32.glUseProgram(programEarth);
@@ -413,8 +509,8 @@ public class Sphere {
             String extensions = GLES32.glGetString(GLES32.GL_EXTENSIONS);
             if (extensions != null) {
                 boolean hasAnisotropic = extensions.contains("GL_EXT_texture_filter_anisotropic") ||
-                                       extensions.contains("texture_filter_anisotropic") ||
-                                       extensions.contains("GL_ARB_texture_filter_anisotropic");
+                        extensions.contains("texture_filter_anisotropic") ||
+                        extensions.contains("GL_ARB_texture_filter_anisotropic");
                 if (hasAnisotropic) {
                     final float[] maxAnisotropy = new float[1];
                     GLES32.glGetFloatv(0x84FE, maxAnisotropy, 0);
@@ -536,6 +632,36 @@ public class Sphere {
 
         GLES32.glDisableVertexAttribArray(positionHandler);
         GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+    }
+
+    // Draw rings using the specified ring texture, view-projection matrix, and model matrix
+    public void drawRings(int ringTexture, float[] viewProjMatrix, float[] modelMatrix) {
+        GLES32.glUseProgram(programRings);
+        GLES32.glEnable(GLES32.GL_BLEND);
+        GLES32.glBlendFunc(GLES32.GL_SRC_ALPHA, GLES32.GL_ONE_MINUS_SRC_ALPHA);
+        GLES32.glDepthMask(false); // Allow drawing behind planet
+
+        // Calculate ring MVP
+        float[] ringMvp = new float[16];
+        android.opengl.Matrix.multiplyMM(ringMvp, 0, viewProjMatrix, 0, modelMatrix, 0);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, ringVertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, ringTexBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, ringTexture);
+        GLES32.glUniform1i(ringTextureUniformHandler, 0);
+
+        GLES32.glUniformMatrix4fv(ringMatrixHandler, 1, false, ringMvp, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, ringNumIndices, GLES32.GL_UNSIGNED_SHORT, ringIndexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+        GLES32.glDepthMask(true);
     }
 
 }

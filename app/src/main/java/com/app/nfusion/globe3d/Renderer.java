@@ -30,6 +30,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int earthSpecularTexture; // Earth specular reflection map ID
     private int earthNormalTexture; // Earth normal map for surface detail ID
     private int earthNightTexture; // Earth night lights texture ID
+    private int saturnRingTexture; // Saturn ring texture ID
     private final float[] mvpMatrix = new float[16]; // Model-view-projection transformation matrix
     private final float[] earthViewMatrix = new float[16]; // Camera view transformation matrix
     private final float[] earthProjectionMatrix = new float[16]; // Perspective projection matrix
@@ -372,6 +373,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.earth_specular_map);
         earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
         earthNightTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture_night);
+        saturnRingTexture = TextureHelper.loadTexture(context, R.drawable.saturn_ring_alpha);
 
         initOrbitRendering();
 
@@ -885,6 +887,18 @@ public class Renderer implements GLSurfaceView.Renderer {
         Matrix.multiplyMM(tempMatrix, 0, saturnModelMatrix, 0, saturnRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
         sphere.drawMoon(saturnTexture, mvpMatrix);
+        
+        // Draw Saturn rings with proper tilt (26.73° axial tilt)
+        float[] viewProjMatrix = new float[16];
+        Matrix.multiplyMM(viewProjMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
+        float[] ringModelMatrix = new float[16];
+        Matrix.setIdentityM(ringModelMatrix, 0);
+        Matrix.translateM(ringModelMatrix, 0, saturnPos[0], saturnPos[1], saturnPos[2]);
+        // Apply Saturn's axial tilt to the rings
+        Matrix.rotateM(ringModelMatrix, 0, 26.73f, 0.0f, 0.0f, 1.0f); // Tilt around Z-axis
+        Matrix.scaleM(ringModelMatrix, 0, saturnScaleFactor * 1.5f, saturnScaleFactor * 0.01f, saturnScaleFactor * 1.5f); // Flatten rings
+        Matrix.multiplyMM(ringModelMatrix, 0, ringModelMatrix, 0, saturnRotationMatrix, 0); // Apply rotation
+        sphere.drawRings(saturnRingTexture, viewProjMatrix, ringModelMatrix);
     }
 
     // Draw Uranus sphere with current rotation and position

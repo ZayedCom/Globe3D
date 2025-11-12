@@ -25,6 +25,8 @@ public class MainActivity extends Activity {
     private SurfaceView glSurfaceView; // OpenGL surface for 3D rendering
     private Renderer renderer; // Manages the 3D scene and rendering
     private TextView tvPlanetName; // Displays current planet name at top center
+    private ImageButton btnInfo; // Info button
+    private ImageButton btnPerformance; // Performance button
     private FrameLayout infoDialog; // Overlay dialog showing planet information
     private LinearLayout infoContentContainer; // Container for info dialog content
     private LinearLayout infoContentLayout; // Layout holding dynamically generated info rows
@@ -63,6 +65,16 @@ public class MainActivity extends Activity {
                                     if (particleView != null) {
                                         particleView.stopAnimation();
                                     }
+                                    // Show UI elements after loading completes
+                                    if (tvPlanetName != null) {
+                                        tvPlanetName.setVisibility(View.VISIBLE);
+                                    }
+                                    if (btnInfo != null) {
+                                        btnInfo.setVisibility(View.VISIBLE);
+                                    }
+                                    if (btnPerformance != null) {
+                                        btnPerformance.setVisibility(View.VISIBLE);
+                                    }
                                 })
                                 .start();
                     }
@@ -72,12 +84,17 @@ public class MainActivity extends Activity {
 
         // Initialize UI components
         tvPlanetName = findViewById(R.id.tv_planet_name);
-        ImageButton btnInfo = findViewById(R.id.btn_info);
-        ImageButton btnPerformance = findViewById(R.id.btn_performance);
+        btnInfo = findViewById(R.id.btn_info);
+        btnPerformance = findViewById(R.id.btn_performance);
         infoDialog = findViewById(R.id.info_dialog);
         infoContentContainer = findViewById(R.id.info_content_container);
         infoContentLayout = findViewById(R.id.info_content_layout);
         tvPerformanceInfo = findViewById(R.id.tv_performance_info);
+
+        // Hide UI elements during loading
+        tvPlanetName.setVisibility(View.GONE);
+        btnInfo.setVisibility(View.GONE);
+        btnPerformance.setVisibility(View.GONE);
 
         // Update planet name periodically
         handler.post(updatePlanetNameRunnable);
@@ -159,6 +176,7 @@ public class MainActivity extends Activity {
         // Get planet data based on current camera target
         PlanetData data;
         int target = renderer.getCameraTarget();
+        boolean isMoon = (target == 4);
         data = switch (target) {
             case 0 -> PlanetData.getSun(this);
             case 1 -> PlanetData.getMercury(this);
@@ -171,6 +189,12 @@ public class MainActivity extends Activity {
             case 9 -> PlanetData.getNeptune(this);
             default -> PlanetData.getEarth(this);
         };
+
+        // Update title text
+        TextView infoTitle = findViewById(R.id.info_title);
+        if (infoTitle != null) {
+            infoTitle.setText(isMoon ? getString(R.string.moon_information) : getString(R.string.planet_information));
+        }
 
         // Clear previous content
         infoContentLayout.removeAllViews();
@@ -212,7 +236,11 @@ public class MainActivity extends Activity {
         addSectionBox(getString(R.string.section_orbital_positional), infoContentLayout, boxBackground);
         addInfoRow(getString(R.string.label_orbital_speed), data.orbitalSpeed, infoContentLayout, boxBackground);
         addInfoRow(getString(R.string.label_orbital_eccentricity), data.orbitalEccentricity, infoContentLayout, boxBackground);
-        addInfoRow(getString(R.string.label_number_of_moons), data.numberOfMoons, infoContentLayout, boxBackground);
+
+        // Only show "Number of Moons" if not viewing the Moon itself
+        if (!isMoon) {
+            addInfoRow(getString(R.string.label_number_of_moons), data.numberOfMoons, infoContentLayout, boxBackground);
+        }
         addInfoRow(getString(R.string.label_rings), data.rings, infoContentLayout, boxBackground);
 
         // Atmospheric & Surface Data section
