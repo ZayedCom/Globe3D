@@ -1,3 +1,108 @@
 <resources>
     <string name="app_name">Globe 3D</string>
+    
+    <!-- UI Strings -->
+    <string name="planet_name_default">Earth</string>
+    <string name="planet_information">Planet Information</string>
+    <string name="performance_info">Performance Info</string>
+    <string name="planet_info">Planet Info</string>
+    <string name="fps_format">FPS: %.0f\nTriangles: %d\nMemory: %d MB</string>
+    <string name="fps_default">FPS: 60\nTriangles: 0\nMemory: 0 MB</string>
+    
+    <!-- Section Titles -->
+    <string name="section_essential_physical">Essential Physical Information</string>
+    <string name="section_orbital_positional">Orbital and Positional Data</string>
+    <string name="section_atmospheric_surface">Atmospheric &amp; Surface Data</string>
+    <string name="section_exploration_observation">Exploration &amp; Observation Data</string>
+    
+    <!-- Field Labels -->
+    <string name="label_mass">Mass</string>
+    <string name="label_diameter">Diameter</string>
+    <string name="label_radius">Radius</string>
+    <string name="label_gravity">Gravity</string>
+    <string name="label_density">Density</string>
+    <string name="label_rotation_period">Rotation Period</string>
+    <string name="label_orbital_period">Orbital Period</string>
+    <string name="label_axial_tilt">Axial Tilt</string>
+    <string name="label_orbital_speed">Orbital Speed</string>
+    <string name="label_orbital_eccentricity">Orbital Eccentricity</string>
+    <string name="label_number_of_moons">Number of Moons</string>
+    <string name="label_rings">Rings</string>
+    <string name="label_atmospheric_composition">Atmospheric Composition</string>
+    <string name="label_average_surface_temperature">Average Surface Temperature</string>
+    <string name="label_surface_pressure">Surface Pressure</string>
+    <string name="label_color_albedo">Color / Albedo</string>
+    <string name="label_notable_surface_features">Notable Surface Features</string>
+    <string name="label_discovery_date">Discovery Date</string>
+    <string name="label_discovered_by">Discovered By</string>
+    <string name="label_missions_visited">Missions Visited</string>
+    
+    <!-- Earth Data -->
+    <string name="earth_name">Earth</string>
+    <string name="earth_mass">5.97 × 10²⁴ kg (1 Earth mass)</string>
+    <string name="earth_diameter">12,756 km</string>
+    <string name="earth_radius">6,371 km</string>
+    <string name="earth_gravity">9.8 m/s² (1.0× Earth)</string>
+    <string name="earth_density">5,514 kg/m³</string>
+    <string name="earth_rotation_period">23.93 hours (1 day)</string>
+    <string name="earth_orbital_period">365.25 days (1 year)</string>
+    <string name="earth_axial_tilt">23.44°</string>
+    <string name="earth_orbital_speed">29.78 km/s</string>
+    <string name="earth_orbital_eccentricity">0.0167</string>
+    <string name="earth_number_of_moons">1 (The Moon)</string>
+    <string name="earth_rings">No</string>
+    <string name="earth_atmospheric_composition">78% N₂, 21% O₂, 1% Ar, 0.04% CO₂</string>
+    <string name="earth_average_surface_temperature">15°C (288 K)</string>
+    <string name="earth_surface_pressure">101.325 kPa (1 atm)</string>
+    <string name="earth_color_albedo">0.367 (moderate reflectivity)</string>
+    <string name="earth_notable_surface_features">Oceans, continents, mountains, polar ice caps, diverse ecosystems</string>
+    <string name="earth_discovery_date">Prehistoric</string>
+    <string name="earth_discovered_by">Unknown (always known)</string>
+    <string name="earth_missions_visited">Countless (home planet)</string>
+    
+    <!-- Sun Data -->
+    <string name="sun_name">Sun</string>
+    <string name="sun_mass">1.989 × 10³⁰ kg (333,000× Earth)</string>
+    <string name="sun_diameter">1,392,700 km</string>
+    <string name="sun_radius">696,340 km</string>
+    <string name="sun_gravity">274 m/s² (28× Earth)</string>
+    <string name="sun_density">1,408 kg/m³</string>
+    <string name="sun_rotation_period">25.4 days (equator), 36 days (poles)</string>
+    <string name="sun_orbital_period">N/A (center of solar system)</string>
+    <string name="sun_axial_tilt">7.25°</string>
+    <string name="sun_orbital_speed">N/A</string>
+    <string name="sun_orbital_eccentricity">N/A</string>
+    <string name="sun_number_of_moons">0 (star, not a planet)</string>
+    <string name="sun_rings">No</string>
+    <string name="sun_atmospheric_composition">73% H, 25% He, 2% other elements (plasma)</string>
+    <string name="sun_average_surface_temperature">5,778 K (5,505°C)</string>
+    <string name="sun_surface_pressure">N/A (plasma state)</string>
+    <string name="sun_color_albedo">0.067 (very low, emits light)</string>
+    <string name="sun_notable_surface_features">Sunspots, solar flares, prominences, corona</string>
+    <string name="sun_discovery_date">Prehistoric</string>
+    <string name="sun_discovered_by">Unknown (always known)</string>
+    <string name="sun_missions_visited">Parker Solar Probe, Solar Orbiter, SOHO, Ulysses</string>
+    
+    <!-- Moon Data -->
+    <string name="moon_name">Moon</string>
+    <string name="moon_mass">7.35 × 10²² kg (0.0123× Earth)</string>
+    <string name="moon_diameter">3,474 km</string>
+    <string name="moon_radius">1,737 km</string>
+    <string name="moon_gravity">1.62 m/s² (0.165× Earth)</string>
+    <string name="moon_density">3,344 kg/m³</string>
+    <string name="moon_rotation_period">27.32 days (tidally locked)</string>
+    <string name="moon_orbital_period">27.32 days (same as rotation)</string>
+    <string name="moon_axial_tilt">6.68°</string>
+    <string name="moon_orbital_speed">1.022 km/s</string>
+    <string name="moon_orbital_eccentricity">0.0549</string>
+    <string name="moon_number_of_moons">0</string>
+    <string name="moon_rings">No</string>
+    <string name="moon_atmospheric_composition">Extremely thin: He, Ne, Ar, H₂ (surface pressure ~10⁻¹² bar)</string>
+    <string name="moon_average_surface_temperature">-23°C to 123°C (250-396 K)</string>
+    <string name="moon_surface_pressure">~10⁻¹² bar (essentially vacuum)</string>
+    <string name="moon_color_albedo">0.136 (low reflectivity)</string>
+    <string name="moon_notable_surface_features">Craters, maria (lava plains), highlands, no atmosphere</string>
+    <string name="moon_discovery_date">Prehistoric</string>
+    <string name="moon_discovered_by">Unknown (always known)</string>
+    <string name="moon_missions_visited">Apollo 11-17, Luna program, Chang\'e missions, Artemis</string>
 </resources>

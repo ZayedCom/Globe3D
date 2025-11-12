@@ -9,43 +9,44 @@ import android.opengl.GLES32;
 
 public class Sphere {
 
-    private FloatBuffer vertexBuffer, texBuffer;
-    private ShortBuffer indexBuffer;
+    private FloatBuffer vertexBuffer; // Buffer containing sphere vertex positions
+    private FloatBuffer texBuffer; // Buffer containing texture coordinates for vertices
+    private ShortBuffer indexBuffer; // Buffer containing triangle indices for rendering
 
-    private static final int LATITUDE_BANDS = 120;
-    private static final int LONGITUDE_BANDS = 120;
+    private static final int LATITUDE_BANDS = 120; // Number of horizontal divisions for sphere geometry
+    private static final int LONGITUDE_BANDS = 120; // Number of vertical divisions for sphere geometry
 
-    private int programEarth;
-    private int programMoon;
-    private int programBackground;
-    private int programMotionBlur;
-    private int programSun;
-    private int positionHandler;
-    private int textureCoordinateHandler;
-    private int normalHandler;
-    private int earthTextureUniformHandler;
-    private int moonTextureUniformHandler;
-    private int backgroundTextureUniformHandler;
-    private int motionBlurTextureUniformHandler;
-    private int motionBlurIntensityHandler;
-    private int earthCloudTextureUniformHandler;
-    private int earthCloudRotationUniformHandler;
-    private int earthCloudAlphaUniformHandler;
-    private int earthSpecularTextureUniformHandler;
-    private int earthNormalTextureUniformHandler;
-    private int sunTextureUniformHandler;
-    private int sunGlowIntensityUniformHandler;
-    private int sunLightDirectionUniformHandler;
-    private int sunLightColorUniformHandler;
-    private int motionBlurCloudTextureUniformHandler;
-    private int motionBlurCloudRotationUniformHandler;
-    private int motionBlurCloudAlphaUniformHandler;
-    private int matrixHandler;
-    private int matrixHandlerBackground;
-    private int matrixHandlerMotionBlur;
-    private int matrixHandlerSun;
-    private FloatBuffer normalBuffer;
-    private int numIndices;
+    private int programEarth; // OpenGL shader program ID for rendering Earth
+    private int programMoon; // OpenGL shader program ID for rendering Moon
+    private int programBackground; // OpenGL shader program ID for rendering background
+    private int programMotionBlur; // OpenGL shader program ID for motion blur effect
+    private int programSun; // OpenGL shader program ID for rendering Sun
+    private int positionHandler; // Shader attribute location for vertex positions
+    private int textureCoordinateHandler; // Shader attribute location for texture coordinates
+    private int normalHandler; // Shader attribute location for vertex normals
+    private int earthTextureUniformHandler; // Shader uniform location for Earth texture
+    private int moonTextureUniformHandler; // Shader uniform location for Moon texture
+    private int backgroundTextureUniformHandler; // Shader uniform location for background texture
+    private int motionBlurTextureUniformHandler; // Shader uniform location for motion blur texture
+    private int motionBlurIntensityHandler; // Shader uniform location for motion blur intensity
+    private int earthCloudTextureUniformHandler; // Shader uniform location for Earth cloud texture
+    private int earthCloudRotationUniformHandler; // Shader uniform location for cloud rotation angle
+    private int earthCloudAlphaUniformHandler; // Shader uniform location for cloud transparency
+    private int earthSpecularTextureUniformHandler; // Shader uniform location for Earth specular map
+    private int earthNormalTextureUniformHandler; // Shader uniform location for Earth normal map
+    private int sunTextureUniformHandler; // Shader uniform location for Sun texture
+    private int sunGlowIntensityUniformHandler; // Shader uniform location for Sun glow intensity
+    private int sunLightDirectionUniformHandler; // Shader uniform location for light direction vector
+    private int sunLightColorUniformHandler; // Shader uniform location for light color
+    private int motionBlurCloudTextureUniformHandler; // Shader uniform location for motion blur cloud texture
+    private int motionBlurCloudRotationUniformHandler; // Shader uniform location for motion blur cloud rotation
+    private int motionBlurCloudAlphaUniformHandler; // Shader uniform location for motion blur cloud alpha
+    private int matrixHandler; // Shader uniform location for MVP transformation matrix
+    private int matrixHandlerBackground; // Shader uniform location for background MVP matrix
+    private int matrixHandlerMotionBlur; // Shader uniform location for motion blur MVP matrix
+    private int matrixHandlerSun; // Shader uniform location for Sun MVP matrix
+    private FloatBuffer normalBuffer; // Buffer containing vertex normal vectors
+    private int numIndices; // Total number of triangle indices for rendering
 
     // Initialize the sphere geometry, shaders, and OpenGL programs
     public void init() {
@@ -424,6 +425,39 @@ public class Sphere {
         GLES32.glUniform1i(backgroundTextureUniformHandler, 2);
 
         GLES32.glUniformMatrix4fv(matrixHandlerBackground, 1, false, mvpMatrix, 0);
+
+        GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
+
+        GLES32.glDisableVertexAttribArray(positionHandler);
+        GLES32.glDisableVertexAttribArray(textureCoordinateHandler);
+        GLES32.glEnable(GLES32.GL_DEPTH_TEST);
+    }
+
+    // Draw the background space texture with motion blur effect during transitions
+    public void drawBackgroundWithBlur(int backgroundTexture, float[] mvpMatrix, float blurIntensity) {
+        GLES32.glUseProgram(programMotionBlur);
+        GLES32.glDisable(GLES32.GL_DEPTH_TEST);
+
+        GLES32.glVertexAttribPointer(positionHandler, 3, GLES32.GL_FLOAT, false, 0, vertexBuffer);
+        GLES32.glEnableVertexAttribArray(positionHandler);
+
+        GLES32.glVertexAttribPointer(textureCoordinateHandler, 2, GLES32.GL_FLOAT, false, 0, texBuffer);
+        GLES32.glEnableVertexAttribArray(textureCoordinateHandler);
+
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, backgroundTexture);
+        GLES32.glUniform1i(motionBlurTextureUniformHandler, 0);
+
+        // Use a dummy texture for cloud (not used, but required by shader)
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, backgroundTexture);
+        GLES32.glUniform1i(motionBlurCloudTextureUniformHandler, 1);
+
+        GLES32.glUniform1f(motionBlurIntensityHandler, blurIntensity);
+        GLES32.glUniform1f(motionBlurCloudRotationUniformHandler, 0.0f);
+        GLES32.glUniform1f(motionBlurCloudAlphaUniformHandler, 0.0f); // Disable cloud blending
+
+        GLES32.glUniformMatrix4fv(matrixHandlerMotionBlur, 1, false, mvpMatrix, 0);
 
         GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
 
