@@ -129,8 +129,15 @@ public class MainActivity extends Activity {
         PlanetData data;
         int target = renderer.getCameraTarget();
         data = switch (target) {
-            case 1 -> PlanetData.getSun(this);
-            case 2 -> PlanetData.getMoon(this);
+            case 0 -> PlanetData.getSun(this);
+            case 1 -> PlanetData.getMercury(this);
+            case 2 -> PlanetData.getVenus(this);
+            case 4 -> PlanetData.getMoon(this);
+            case 5 -> PlanetData.getMars(this);
+            case 6 -> PlanetData.getJupiter(this);
+            case 7 -> PlanetData.getSaturn(this);
+            case 8 -> PlanetData.getUranus(this);
+            case 9 -> PlanetData.getNeptune(this);
             default -> PlanetData.getEarth(this);
         };
 
@@ -143,7 +150,7 @@ public class MainActivity extends Activity {
         display.getSize(size);
         int screenHeight = size.y;
         int dialogMaxHeight = screenHeight / 2;
-        
+
         FrameLayout.LayoutParams containerParams = (FrameLayout.LayoutParams) infoContentContainer.getLayoutParams();
         if (containerParams == null) {
             containerParams = new FrameLayout.LayoutParams(

@@ -1,6 +1,6 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Globe 3D</string>
-    
+
     <!-- UI Strings -->
     <string name="planet_name_default">Earth</string>
     <string name="planet_information">Planet Information</string>
@@ -8,13 +8,13 @@
     <string name="planet_info">Planet Info</string>
     <string name="fps_format">FPS: %.0f\nTriangles: %d\nMemory: %d MB</string>
     <string name="fps_default">FPS: 60\nTriangles: 0\nMemory: 0 MB</string>
-    
+
     <!-- Section Titles -->
     <string name="section_essential_physical">Essential Physical Information</string>
     <string name="section_orbital_positional">Orbital and Positional Data</string>
     <string name="section_atmospheric_surface">Atmospheric &amp; Surface Data</string>
     <string name="section_exploration_observation">Exploration &amp; Observation Data</string>
-    
+
     <!-- Field Labels -->
     <string name="label_mass">Mass</string>
     <string name="label_diameter">Diameter</string>
@@ -36,7 +36,7 @@
     <string name="label_discovery_date">Discovery Date</string>
     <string name="label_discovered_by">Discovered By</string>
     <string name="label_missions_visited">Missions Visited</string>
-    
+
     <!-- Earth Data -->
     <string name="earth_name">Earth</string>
     <string name="earth_mass">5.97 × 10²⁴ kg (1 Earth mass)</string>
@@ -59,7 +59,7 @@
     <string name="earth_discovery_date">Prehistoric</string>
     <string name="earth_discovered_by">Unknown (always known)</string>
     <string name="earth_missions_visited">Countless (home planet)</string>
-    
+
     <!-- Sun Data -->
     <string name="sun_name">Sun</string>
     <string name="sun_mass">1.989 × 10³⁰ kg (333,000× Earth)</string>
@@ -82,7 +82,7 @@
     <string name="sun_discovery_date">Prehistoric</string>
     <string name="sun_discovered_by">Unknown (always known)</string>
     <string name="sun_missions_visited">Parker Solar Probe, Solar Orbiter, SOHO, Ulysses</string>
-    
+
     <!-- Moon Data -->
     <string name="moon_name">Moon</string>
     <string name="moon_mass">7.35 × 10²² kg (0.0123× Earth)</string>
@@ -98,11 +98,172 @@
     <string name="moon_number_of_moons">0</string>
     <string name="moon_rings">No</string>
     <string name="moon_atmospheric_composition">Extremely thin: He, Ne, Ar, H₂ (surface pressure ~10⁻¹² bar)</string>
-    <string name="moon_average_surface_temperature">-23°C to 123°C (250-396 K)</string>
+    <string name="moon_average_surface_temperature">–23°C to 123°C (250–396 K)</string>
     <string name="moon_surface_pressure">~10⁻¹² bar (essentially vacuum)</string>
     <string name="moon_color_albedo">0.136 (low reflectivity)</string>
     <string name="moon_notable_surface_features">Craters, maria (lava plains), highlands, no atmosphere</string>
     <string name="moon_discovery_date">Prehistoric</string>
     <string name="moon_discovered_by">Unknown (always known)</string>
-    <string name="moon_missions_visited">Apollo 11-17, Luna program, Chang\'e missions, Artemis</string>
+    <string name="moon_missions_visited">Apollo 11–17, Luna program, Chang\'e missions, Artemis</string>
+
+    <!-- Mercury Data -->
+    <string name="mercury_name">Mercury</string>
+    <string name="mercury_mass">3.30 × 10²³ kg (0.055× Earth)</string>
+    <string name="mercury_diameter">4,879 km</string>
+    <string name="mercury_radius">2,440 km</string>
+    <string name="mercury_gravity">3.7 m/s² (0.38× Earth)</string>
+    <string name="mercury_density">5,427 kg/m³</string>
+    <string name="mercury_rotation_period">58.6 days</string>
+    <string name="mercury_orbital_period">88 days</string>
+    <string name="mercury_axial_tilt">0.034°</string>
+    <string name="mercury_orbital_speed">47.4 km/s</string>
+    <string name="mercury_orbital_eccentricity">0.2056</string>
+    <string name="mercury_number_of_moons">0</string>
+    <string name="mercury_rings">No</string>
+    <string name="mercury_atmospheric_composition">Extremely thin: O₂, Na, H₂, He, K (surface pressure ~10⁻¹⁵ bar)</string>
+    <string name="mercury_average_surface_temperature">167°C (440 K) average, -173°C to 427°C range</string>
+    <string name="mercury_surface_pressure">~10⁻¹⁵ bar (essentially vacuum)</string>
+    <string name="mercury_color_albedo">0.142 (low reflectivity)</string>
+    <string name="mercury_notable_surface_features">Craters, scarps, no atmosphere, extreme temperature variations</string>
+    <string name="mercury_discovery_date">Prehistoric (visible to naked eye)</string>
+    <string name="mercury_discovered_by">Unknown (always known)</string>
+    <string name="mercury_missions_visited">Mariner 10, MESSENGER, BepiColombo</string>
+
+    <!-- Venus Data -->
+    <string name="venus_name">Venus</string>
+    <string name="venus_mass">4.87 × 10²⁴ kg (0.815× Earth)</string>
+    <string name="venus_diameter">12,104 km</string>
+    <string name="venus_radius">6,052 km</string>
+    <string name="venus_gravity">8.87 m/s² (0.91× Earth)</string>
+    <string name="venus_density">5,243 kg/m³</string>
+    <string name="venus_rotation_period">243 days (retrograde)</string>
+    <string name="venus_orbital_period">225 days</string>
+    <string name="venus_axial_tilt">177.4° (retrograde rotation)</string>
+    <string name="venus_orbital_speed">35.0 km/s</string>
+    <string name="venus_orbital_eccentricity">0.0068</string>
+    <string name="venus_number_of_moons">0</string>
+    <string name="venus_rings">No</string>
+    <string name="venus_atmospheric_composition">96% CO₂, 3.5% N₂, 0.5% other (dense, toxic)</string>
+    <string name="venus_average_surface_temperature">462°C (735 K)</string>
+    <string name="venus_surface_pressure">9,200 kPa (91× Earth)</string>
+    <string name="venus_color_albedo">0.75 (very high reflectivity)</string>
+    <string name="venus_notable_surface_features">Volcanoes, lava plains, thick clouds, runaway greenhouse effect</string>
+    <string name="venus_discovery_date">Prehistoric (visible to naked eye)</string>
+    <string name="venus_discovered_by">Unknown (always known)</string>
+    <string name="venus_missions_visited">Venera program, Magellan, Venus Express, Akatsuki</string>
+
+    <!-- Mars Data -->
+    <string name="mars_name">Mars</string>
+    <string name="mars_mass">6.39 × 10²³ kg (0.107× Earth)</string>
+    <string name="mars_diameter">6,792 km</string>
+    <string name="mars_radius">3,396 km</string>
+    <string name="mars_gravity">3.71 m/s² (0.38× Earth)</string>
+    <string name="mars_density">3,933 kg/m³</string>
+    <string name="mars_rotation_period">24.6 hours</string>
+    <string name="mars_orbital_period">687 days</string>
+    <string name="mars_axial_tilt">25.19°</string>
+    <string name="mars_orbital_speed">24.1 km/s</string>
+    <string name="mars_orbital_eccentricity">0.0934</string>
+    <string name="mars_number_of_moons">2 (Phobos, Deimos)</string>
+    <string name="mars_rings">No</string>
+    <string name="mars_atmospheric_composition">95% CO₂, 2.7% N₂, 1.6% Ar, 0.13% O₂</string>
+    <string name="mars_average_surface_temperature">-65°C (208 K)</string>
+    <string name="mars_surface_pressure">0.636 kPa (0.006× Earth)</string>
+    <string name="mars_color_albedo">0.25 (moderate reflectivity, red appearance)</string>
+    <string name="mars_notable_surface_features">Olympus Mons (largest volcano), Valles Marineris (canyon), polar ice caps, ancient riverbeds</string>
+    <string name="mars_discovery_date">Prehistoric (visible to naked eye)</string>
+    <string name="mars_discovered_by">Unknown (always known)</string>
+    <string name="mars_missions_visited">Viking, Pathfinder, Spirit, Opportunity, Curiosity, Perseverance, InSight</string>
+
+    <!-- Jupiter Data -->
+    <string name="jupiter_name">Jupiter</string>
+    <string name="jupiter_mass">1.90 × 10²⁷ kg (318× Earth)</string>
+    <string name="jupiter_diameter">142,984 km</string>
+    <string name="jupiter_radius">71,492 km</string>
+    <string name="jupiter_gravity">24.79 m/s² (2.53× Earth)</string>
+    <string name="jupiter_density">1,326 kg/m³</string>
+    <string name="jupiter_rotation_period">9.93 hours</string>
+    <string name="jupiter_orbital_period">12 years</string>
+    <string name="jupiter_axial_tilt">3.13°</string>
+    <string name="jupiter_orbital_speed">13.1 km/s</string>
+    <string name="jupiter_orbital_eccentricity">0.0489</string>
+    <string name="jupiter_number_of_moons">95+ (including Io, Europa, Ganymede, Callisto)</string>
+    <string name="jupiter_rings">Yes (faint ring system)</string>
+    <string name="jupiter_atmospheric_composition">90% H₂, 10% He, trace amounts of CH₄, NH₃, H₂O</string>
+    <string name="jupiter_average_surface_temperature">-110°C (163 K) at cloud tops</string>
+    <string name="jupiter_surface_pressure">N/A (gas giant, no solid surface)</string>
+    <string name="jupiter_color_albedo">0.503 (moderate reflectivity)</string>
+    <string name="jupiter_notable_surface_features">Great Red Spot (giant storm), cloud bands, auroras, strong magnetic field</string>
+    <string name="jupiter_discovery_date">Prehistoric (visible to naked eye)</string>
+    <string name="jupiter_discovered_by">Unknown (always known)</string>
+    <string name="jupiter_missions_visited" tools:ignore="TypographyFractions">Pioneer 10/11, Voyager 1/2, Galileo, Juno, Cassini</string>
+
+    <!-- Saturn Data -->
+    <string name="saturn_name">Saturn</string>
+    <string name="saturn_mass">5.68 × 10²⁶ kg (95× Earth)</string>
+    <string name="saturn_diameter">120,536 km</string>
+    <string name="saturn_radius">60,268 km</string>
+    <string name="saturn_gravity">10.44 m/s² (1.07× Earth)</string>
+    <string name="saturn_density">687 kg/m³ (less than water!)</string>
+    <string name="saturn_rotation_period">10.7 hours</string>
+    <string name="saturn_orbital_period">29 years</string>
+    <string name="saturn_axial_tilt">26.73°</string>
+    <string name="saturn_orbital_speed">9.7 km/s</string>
+    <string name="saturn_orbital_eccentricity">0.0565</string>
+    <string name="saturn_number_of_moons">146+ (including Titan, Enceladus, Mimas)</string>
+    <string name="saturn_rings">Yes (prominent ring system)</string>
+    <string name="saturn_atmospheric_composition">96% H₂, 3% He, 0.4% CH₄, trace NH₃</string>
+    <string name="saturn_average_surface_temperature">-140°C (133 K) at cloud tops</string>
+    <string name="saturn_surface_pressure">N/A (gas giant, no solid surface)</string>
+    <string name="saturn_color_albedo">0.342 (moderate reflectivity)</string>
+    <string name="saturn_notable_surface_features">Rings (ice and rock particles), hexagonal storm at north pole, cloud bands</string>
+    <string name="saturn_discovery_date">Prehistoric (visible to naked eye)</string>
+    <string name="saturn_discovered_by">Unknown (always known)</string>
+    <string name="saturn_missions_visited" tools:ignore="TypographyFractions">Pioneer 11, Voyager 1/2, Cassini-Huygens</string>
+
+    <!-- Uranus Data -->
+    <string name="uranus_name">Uranus</string>
+    <string name="uranus_mass">8.68 × 10²⁵ kg (14.5× Earth)</string>
+    <string name="uranus_diameter">51,118 km</string>
+    <string name="uranus_radius">25,559 km</string>
+    <string name="uranus_gravity">8.69 m/s² (0.89× Earth)</string>
+    <string name="uranus_density">1,270 kg/m³</string>
+    <string name="uranus_rotation_period">17.2 hours</string>
+    <string name="uranus_orbital_period">84 years</string>
+    <string name="uranus_axial_tilt">97.77° (rotates on its side)</string>
+    <string name="uranus_orbital_speed">6.8 km/s</string>
+    <string name="uranus_orbital_eccentricity">0.0457</string>
+    <string name="uranus_number_of_moons">27 (including Titania, Oberon, Miranda)</string>
+    <string name="uranus_rings">Yes (faint ring system)</string>
+    <string name="uranus_atmospheric_composition">83% H₂, 15% He, 2% CH₄ (gives blue color)</string>
+    <string name="uranus_average_surface_temperature">-195°C (78 K) at cloud tops</string>
+    <string name="uranus_surface_pressure">N/A (ice giant, no solid surface)</string>
+    <string name="uranus_color_albedo">0.300 (moderate reflectivity, blue-green appearance)</string>
+    <string name="uranus_notable_surface_features">Extreme axial tilt, faint rings, methane gives blue color, cold atmosphere</string>
+    <string name="uranus_discovery_date">March 13, 1781</string>
+    <string name="uranus_discovered_by">William Herschel</string>
+    <string name="uranus_missions_visited">Voyager 2 (only flyby)</string>
+
+    <!-- Neptune Data -->
+    <string name="neptune_name">Neptune</string>
+    <string name="neptune_mass">1.02 × 10²⁶ kg (17.1× Earth)</string>
+    <string name="neptune_diameter">49,528 km</string>
+    <string name="neptune_radius">24,764 km</string>
+    <string name="neptune_gravity">11.15 m/s² (1.14× Earth)</string>
+    <string name="neptune_density">1,638 kg/m³</string>
+    <string name="neptune_rotation_period">16.1 hours</string>
+    <string name="neptune_orbital_period">165 years</string>
+    <string name="neptune_axial_tilt">28.32°</string>
+    <string name="neptune_orbital_speed">5.4 km/s</string>
+    <string name="neptune_orbital_eccentricity">0.0087</string>
+    <string name="neptune_number_of_moons">16 (including Triton, Nereid)</string>
+    <string name="neptune_rings">Yes (faint ring system)</string>
+    <string name="neptune_atmospheric_composition">80% H₂, 19% He, 1.5% CH₄ (gives blue color)</string>
+    <string name="neptune_average_surface_temperature">-200°C (73 K) at cloud tops</string>
+    <string name="neptune_surface_pressure">N/A (ice giant, no solid surface)</string>
+    <string name="neptune_color_albedo">0.290 (moderate reflectivity, deep blue appearance)</string>
+    <string name="neptune_notable_surface_features">Great Dark Spot (storm), strongest winds in solar system (2,100 km/h), deep blue color</string>
+    <string name="neptune_discovery_date">September 23, 1846</string>
+    <string name="neptune_discovered_by">Urbain Le Verrier, Johann Galle (predicted mathematically, then observed)</string>
+    <string name="neptune_missions_visited">Voyager 2 (only flyby)</string>
 </resources>
