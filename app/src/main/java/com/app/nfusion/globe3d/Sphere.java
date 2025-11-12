@@ -374,10 +374,6 @@ public class Sphere {
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, earthNightTexture);
         GLES32.glUniform1i(earthNightTextureUniformHandler, 2);
 
-        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
-        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
-        GLES32.glUniform1i(earthCloudTextureUniformHandler, 1);
-
         GLES32.glActiveTexture(GLES32.GL_TEXTURE3);
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, specularTexture);
         GLES32.glUniform1i(earthSpecularTextureUniformHandler, 3);
@@ -386,14 +382,51 @@ public class Sphere {
         GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, normalTexture);
         GLES32.glUniform1i(earthNormalTextureUniformHandler, 4);
 
+        // Set all uniforms before binding cloud texture
         GLES32.glUniform1f(earthCloudRotationUniformHandler, cloudRotation);
         GLES32.glUniform1f(earthCloudAlphaUniformHandler, cloudAlpha);
         GLES32.glUniform3fv(sunLightDirectionUniformHandler, 1, lightDirection, 0);
         GLES32.glUniform3fv(sunLightColorUniformHandler, 1, lightColor, 0);
-
         GLES32.glUniformMatrix4fv(matrixHandler, 1, false, mvpMatrix, 0);
         int modelMatrixHandler = GLES32.glGetUniformLocation(programEarth, "uModelMatrix");
         GLES32.glUniformMatrix4fv(modelMatrixHandler, 1, false, modelMatrix, 0);
+
+        // Bind cloud texture LAST, RIGHT BEFORE drawing, to prevent blend/transparency state from affecting it
+        // This ensures the texture parameters are fresh and not corrupted by blending operations
+        GLES32.glActiveTexture(GLES32.GL_TEXTURE1);
+        GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, cloudTexture);
+        // CRITICAL: Force ALL texture parameters EVERY frame to prevent blend/transparency from corrupting texture state
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_BASE_LEVEL, 0);
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAX_LEVEL, 0);
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MIN_FILTER, GLES32.GL_LINEAR);
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAG_FILTER, GLES32.GL_LINEAR);
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_WRAP_S, GLES32.GL_REPEAT);
+        GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_WRAP_T, GLES32.GL_REPEAT);
+        // Force texture LOD bias to 0 to always use the base mipmap level (full resolution)
+        try {
+            GLES32.glTexParameterf(GLES32.GL_TEXTURE_2D, 0x8501, 0.0f); // GL_TEXTURE_LOD_BIAS
+        } catch (Exception e) {
+            // LOD bias not available, continue without it
+        }
+        // Re-apply anisotropic filtering if available
+        try {
+            String extensions = GLES32.glGetString(GLES32.GL_EXTENSIONS);
+            if (extensions != null) {
+                boolean hasAnisotropic = extensions.contains("GL_EXT_texture_filter_anisotropic") ||
+                                       extensions.contains("texture_filter_anisotropic") ||
+                                       extensions.contains("GL_ARB_texture_filter_anisotropic");
+                if (hasAnisotropic) {
+                    final float[] maxAnisotropy = new float[1];
+                    GLES32.glGetFloatv(0x84FE, maxAnisotropy, 0);
+                    if (maxAnisotropy[0] > 0) {
+                        GLES32.glTexParameterf(GLES32.GL_TEXTURE_2D, 0x84FF, Math.min(16.0f, maxAnisotropy[0]));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Anisotropic filtering not available, continue without it
+        }
+        GLES32.glUniform1i(earthCloudTextureUniformHandler, 1);
 
         GLES32.glDrawElements(GLES32.GL_TRIANGLES, numIndices, GLES32.GL_UNSIGNED_SHORT, indexBuffer);
 

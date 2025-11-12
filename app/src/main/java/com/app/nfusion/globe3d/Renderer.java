@@ -366,7 +366,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         neptuneTexture = TextureHelper.loadTexture(context, R.drawable.neptune_texture);
         moonTexture = TextureHelper.loadTexture(context, R.drawable.moon_texture);
         backgroundTexture = TextureHelper.loadTexture(context, R.drawable.milky_way);
-        cloudTexture = TextureHelper.loadTexture(context, R.drawable.earth_clouds);
+        cloudTexture = TextureHelper.loadHighQualityTexture(context, R.drawable.earth_clouds);
         earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.earth_specular_map);
         earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
         earthNightTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture_night);
