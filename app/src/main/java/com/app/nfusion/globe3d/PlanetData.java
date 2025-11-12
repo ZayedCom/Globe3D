@@ -4,6 +4,7 @@ import android.content.Context;
 
 // Data class containing physical, orbital, and exploration information for celestial bodies
 public class PlanetData {
+    // Public instance variables - Physical properties
     public String name; // Name of the celestial body
     public String mass; // Mass of the celestial body
     public String diameter; // Diameter from pole to pole
@@ -11,17 +12,23 @@ public class PlanetData {
     public String gravity; // Surface gravity compared to Earth
     public String density; // Material density in kg/m³
     public String rotationPeriod; // Length of one day on the body
-    public String orbitalPeriod; // Time to complete one orbit around the Sun
     public String axialTilt; // Tilt of rotation axis affecting seasons
+
+    // Public instance variables - Orbital properties
+    public String orbitalPeriod; // Time to complete one orbit around the Sun
     public String orbitalSpeed; // Average velocity around the Sun
     public String orbitalEccentricity; // How circular or elliptical the orbit is
     public String numberOfMoons; // Count of natural satellites
     public String rings; // Presence of rings around the body
+
+    // Public instance variables - Atmospheric and surface properties
     public String atmosphericComposition; // Main gases in the atmosphere
     public String averageSurfaceTemperature; // Average temperature in °C or Kelvin
     public String surfacePressure; // Atmospheric pressure at ground level
     public String colorAlbedo; // How much light the body reflects
     public String notableSurfaceFeatures; // Volcanoes, canyons, storms, ice caps, etc.
+
+    // Public instance variables - Discovery and exploration
     public String discoveryDate; // When the body was discovered
     public String discoveredBy; // Name of astronomer or probe that discovered it
     public String missionsVisited; // Spacecraft that have visited or studied it

@@ -9,61 +9,80 @@ import android.opengl.GLES32;
 
 public class Sphere {
 
-    private FloatBuffer vertexBuffer; // Buffer containing sphere vertex positions
-    private FloatBuffer texBuffer; // Buffer containing texture coordinates for vertices
-    private ShortBuffer indexBuffer; // Buffer containing triangle indices for rendering
-
+    // Static constants
     private static final int LATITUDE_BANDS = 120; // Number of horizontal divisions for sphere geometry
     private static final int LONGITUDE_BANDS = 120; // Number of vertical divisions for sphere geometry
 
+    // Private instance variables - Buffers
+    private FloatBuffer vertexBuffer; // Buffer containing sphere vertex positions
+    private FloatBuffer texBuffer; // Buffer containing texture coordinates for vertices
+    private FloatBuffer normalBuffer; // Buffer containing vertex normal vectors
+    private ShortBuffer indexBuffer; // Buffer containing triangle indices for rendering
+    private int numIndices; // Total number of triangle indices for rendering
+
+    // Private instance variables - Ring buffers
+    private FloatBuffer ringVertexBuffer; // Buffer containing ring vertex positions
+    private FloatBuffer ringTexBuffer; // Buffer containing ring texture coordinates
+    private ShortBuffer ringIndexBuffer; // Buffer containing ring triangle indices
+    private int ringNumIndices; // Total number of ring triangle indices
+
+    // Private instance variables - Shader programs
     private int programEarth; // OpenGL shader program ID for rendering Earth
     private int programPlanet; // OpenGL shader program ID for rendering planets with realistic lighting
     private int programBackground; // OpenGL shader program ID for rendering background
     private int programMotionBlur; // OpenGL shader program ID for motion blur effect
     private int programSun; // OpenGL shader program ID for rendering Sun
+    private int programRings; // OpenGL shader program ID for rendering rings
+
+    // Private instance variables - Shader attributes
     private int positionHandler; // Shader attribute location for vertex positions
     private int textureCoordinateHandler; // Shader attribute location for texture coordinates
     private int normalHandler; // Shader attribute location for vertex normals
+    private int planetPositionHandler; // Shader attribute location for planet positions
+    private int planetTexCoordHandler; // Shader attribute location for planet texture coordinates
+    private int planetNormalHandler; // Shader attribute location for planet normals
+
+    // Private instance variables - Shader uniforms - Earth
     private int earthTextureUniformHandler; // Shader uniform location for Earth texture
     private int earthNightTextureUniformHandler; // Shader uniform location for Earth night texture
-    private int backgroundTextureUniformHandler; // Shader uniform location for background texture
-    private int motionBlurTextureUniformHandler; // Shader uniform location for motion blur texture
-    private int motionBlurIntensityHandler; // Shader uniform location for motion blur intensity
     private int earthCloudTextureUniformHandler; // Shader uniform location for Earth cloud texture
     private int earthCloudRotationUniformHandler; // Shader uniform location for cloud rotation angle
     private int earthCloudAlphaUniformHandler; // Shader uniform location for cloud transparency
     private int earthSpecularTextureUniformHandler; // Shader uniform location for Earth specular map
     private int earthNormalTextureUniformHandler; // Shader uniform location for Earth normal map
+
+    // Private instance variables - Shader uniforms - Sun
     private int sunTextureUniformHandler; // Shader uniform location for Sun texture
     private int sunGlowIntensityUniformHandler; // Shader uniform location for Sun glow intensity
     private int sunLightDirectionUniformHandler; // Shader uniform location for light direction vector
     private int sunLightColorUniformHandler; // Shader uniform location for light color
+
+    // Private instance variables - Shader uniforms - Planet
+    private int planetTextureUniformHandler; // Shader uniform location for planet texture
+    private int planetLightDirectionUniformHandler; // Shader uniform location for planet light direction
+    private int planetLightColorUniformHandler; // Shader uniform location for planet light color
+    private int planetModelMatrixUniformHandler; // Shader uniform location for planet model matrix
+
+    // Private instance variables - Shader uniforms - Background
+    private int backgroundTextureUniformHandler; // Shader uniform location for background texture
+
+    // Private instance variables - Shader uniforms - Motion blur
+    private int motionBlurTextureUniformHandler; // Shader uniform location for motion blur texture
+    private int motionBlurIntensityHandler; // Shader uniform location for motion blur intensity
     private int motionBlurCloudTextureUniformHandler; // Shader uniform location for motion blur cloud texture
     private int motionBlurCloudRotationUniformHandler; // Shader uniform location for motion blur cloud rotation
     private int motionBlurCloudAlphaUniformHandler; // Shader uniform location for motion blur cloud alpha
+
+    // Private instance variables - Shader uniforms - Rings
+    private int ringTextureUniformHandler; // Shader uniform location for ring texture
+
+    // Private instance variables - Shader uniforms - Matrices
     private int matrixHandler; // Shader uniform location for MVP transformation matrix
     private int matrixHandlerBackground; // Shader uniform location for background MVP matrix
     private int matrixHandlerMotionBlur; // Shader uniform location for motion blur MVP matrix
     private int matrixHandlerSun; // Shader uniform location for Sun MVP matrix
     private int matrixHandlerPlanet; // Shader uniform location for planet MVP matrix
-    private int planetTextureUniformHandler; // Shader uniform location for planet texture
-    private int planetLightDirectionUniformHandler; // Shader uniform location for planet light direction
-    private int planetLightColorUniformHandler; // Shader uniform location for planet light color
-    private int planetModelMatrixUniformHandler; // Shader uniform location for planet model matrix
-    private int planetNormalHandler; // Shader attribute location for planet normals
-    private int planetPositionHandler; // Shader attribute location for planet positions
-    private int planetTexCoordHandler; // Shader attribute location for planet texture coordinates
-    private FloatBuffer normalBuffer; // Buffer containing vertex normal vectors
-    private int numIndices; // Total number of triangle indices for rendering
-
-    // Ring geometry buffers
-    private FloatBuffer ringVertexBuffer; // Buffer containing ring vertex positions
-    private FloatBuffer ringTexBuffer; // Buffer containing ring texture coordinates
-    private ShortBuffer ringIndexBuffer; // Buffer containing ring triangle indices
-    private int programRings; // OpenGL shader program ID for rendering rings
-    private int ringTextureUniformHandler; // Shader uniform location for ring texture
     private int ringMatrixHandler; // Shader uniform location for ring MVP matrix
-    private int ringNumIndices; // Total number of ring triangle indices
 
     // Initialize the sphere geometry, shaders, and OpenGL programs
     public void init() {

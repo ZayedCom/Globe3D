@@ -13,8 +13,97 @@ import javax.microedition.khronos.opengles.GL10;
 
 public class Renderer implements GLSurfaceView.Renderer {
 
+    // Static constants - Camera
+    private static final float baseCameraDistance = 3.0f; // Default camera distance from target
+    private static final float minElevation = -1.4f; // Minimum camera vertical angle
+    private static final float maxElevation = 1.4f; // Maximum camera vertical angle
+    private static final float fullTurn = (float) (Math.PI * 2.0f); // Full rotation in radians
+    private static final float MIN_CAMERA_DISTANCE = 0.5f; // Minimum safe distance to prevent collision
+    private static final float minScale = 0.1f; // Minimum allowed zoom level
+    private static final float maxScale = 5.0f; // Maximum allowed zoom level
+
+    // Static constants - Orbit radii
+    private static final float mercuryOrbitRadius = 7.7f; // Distance from Sun to Mercury (safe distance from sun surface)
+    private static final float venusOrbitRadius = 14.0f; // Distance from Sun to Venus
+    private static final float earthOrbitRadius = 19.25f; // Distance from Sun to Earth
+    private static final float marsOrbitRadius = 29.4f; // Distance from Sun to Mars
+    private static final float jupiterOrbitRadius = 64.05f; // Distance from Sun to Jupiter
+    private static final float saturnOrbitRadius = 115.5f; // Distance from Sun to Saturn
+    private static final float uranusOrbitRadius = 231.0f; // Distance from Sun to Uranus
+    private static final float neptuneOrbitRadius = 359.45f; // Distance from Sun to Neptune
+    private static final float moonOffset = 1.05f; // Distance from Earth to Moon
+
+    // Static constants - Rotation speeds
+    private static final float sunRotationSpeed = 0.01f; // Sun rotation speed per frame
+    private static final float mercuryRotationSpeed = 0.015f; // Mercury rotation speed per frame
+    private static final float venusRotationSpeed = 0.002f; // Venus rotation speed per frame (retrograde)
+    private static final float earthRotationSpeed = 0.025f; // Earth rotation speed per frame
+    private static final float marsRotationSpeed = 0.026f; // Mars rotation speed per frame
+    private static final float jupiterRotationSpeed = 0.05f; // Jupiter rotation speed per frame
+    private static final float saturnRotationSpeed = 0.04f; // Saturn rotation speed per frame
+    private static final float uranusRotationSpeed = 0.03f; // Uranus rotation speed per frame
+    private static final float neptuneRotationSpeed = 0.032f; // Neptune rotation speed per frame
+    private static final float moonRotationSpeed = 0.025f; // Moon rotation speed per frame
+    private static final float cloudRotationSpeed = 0.0375f; // Cloud layer rotation speed per frame
+
+    // Static constants - Orbital speeds
+    private static final float mercuryOrbitSpeed = 0.016f; // Mercury orbital speed around Sun per frame
+    private static final float venusOrbitSpeed = 0.012f; // Venus orbital speed around Sun per frame
+    private static final float earthOrbitSpeed = 0.005f; // Earth orbital speed around Sun per frame
+    private static final float marsOrbitSpeed = 0.004f; // Mars orbital speed around Sun per frame
+    private static final float jupiterOrbitSpeed = 0.001f; // Jupiter orbital speed around Sun per frame
+    private static final float saturnOrbitSpeed = 0.0005f; // Saturn orbital speed around Sun per frame
+    private static final float uranusOrbitSpeed = 0.0002f; // Uranus orbital speed around Sun per frame
+    private static final float neptuneOrbitSpeed = 0.0001f; // Neptune orbital speed around Sun per frame
+    private static final float moonOrbitSpeed = 0.0125f; // Moon orbital speed around Earth per frame
+
+    // Static constants - Scale factors
+    private static final float sunScaleFactor = 5.25f; // Sun size relative to Earth (bigger than Jupiter)
+    private static final float mercuryScaleFactor = 0.133f; // Mercury size relative to Earth
+    private static final float venusScaleFactor = 0.333f; // Venus size relative to Earth
+    private static final float earthScaleFactor = 0.35f; // Earth size (reference, scaled down)
+    private static final float marsScaleFactor = 0.186f; // Mars size relative to Earth
+    private static final float jupiterScaleFactor = 3.92f; // Jupiter size relative to Earth
+    private static final float saturnScaleFactor = 3.29f; // Saturn size relative to Earth
+    private static final float uranusScaleFactor = 1.4f; // Uranus size relative to Earth
+    private static final float neptuneScaleFactor = 1.365f; // Neptune size relative to Earth
+    private static final float moonScaleFactor = 0.095f; // Moon size relative to Earth
+    private static final float cloudAlpha = 0.5f; // Cloud layer transparency level
+
+    // Final instance variables
     private final Context context; // Android context for loading resources
+    private final float[] mvpMatrix = new float[16]; // Model-view-projection transformation matrix
+    private final float[] earthViewMatrix = new float[16]; // Camera view transformation matrix
+    private final float[] earthProjectionMatrix = new float[16]; // Perspective projection matrix
+
+    // Final instance variables - Model matrices
+    private final float[] sunModelMatrix = new float[16]; // Sun position and scale matrix
+    private final float[] mercuryModelMatrix = new float[16]; // Mercury position and scale matrix
+    private final float[] venusModelMatrix = new float[16]; // Venus position and scale matrix
+    private final float[] earthModelMatrix = new float[16]; // Earth position and scale matrix
+    private final float[] marsModelMatrix = new float[16]; // Mars position and scale matrix
+    private final float[] jupiterModelMatrix = new float[16]; // Jupiter position and scale matrix
+    private final float[] saturnModelMatrix = new float[16]; // Saturn position and scale matrix
+    private final float[] uranusModelMatrix = new float[16]; // Uranus position and scale matrix
+    private final float[] neptuneModelMatrix = new float[16]; // Neptune position and scale matrix
+    private final float[] moonModelMatrix = new float[16]; // Moon position and scale matrix
+
+    // Final instance variables - Rotation matrices
+    private final float[] sunRotationMatrix = new float[16]; // Sun rotation transformation matrix
+    private final float[] mercuryRotationMatrix = new float[16]; // Mercury rotation transformation matrix
+    private final float[] venusRotationMatrix = new float[16]; // Venus rotation transformation matrix
+    private final float[] earthRotationMatrix = new float[16]; // Earth rotation transformation matrix
+    private final float[] marsRotationMatrix = new float[16]; // Mars rotation transformation matrix
+    private final float[] jupiterRotationMatrix = new float[16]; // Jupiter rotation transformation matrix
+    private final float[] saturnRotationMatrix = new float[16]; // Saturn rotation transformation matrix
+    private final float[] uranusRotationMatrix = new float[16]; // Uranus rotation transformation matrix
+    private final float[] neptuneRotationMatrix = new float[16]; // Neptune rotation transformation matrix
+    private final float[] moonRotationMatrix = new float[16]; // Moon rotation transformation matrix
+
+    // Private instance variables - Core components
     private Sphere sphere; // Sphere geometry and shader manager
+
+    // Private instance variables - Textures
     private int sunTexture; // Sun surface texture ID
     private int mercuryTexture; // Mercury surface texture ID
     private int venusTexture; // Venus surface texture ID
@@ -31,35 +120,8 @@ public class Renderer implements GLSurfaceView.Renderer {
     private int earthNormalTexture; // Earth normal map for surface detail ID
     private int earthNightTexture; // Earth night lights texture ID
     private int saturnRingTexture; // Saturn ring texture ID
-    private final float[] mvpMatrix = new float[16]; // Model-view-projection transformation matrix
-    private final float[] earthViewMatrix = new float[16]; // Camera view transformation matrix
-    private final float[] earthProjectionMatrix = new float[16]; // Perspective projection matrix
 
-    // Model matrices for all celestial bodies
-    private final float[] sunModelMatrix = new float[16]; // Sun position and scale matrix
-    private final float[] mercuryModelMatrix = new float[16]; // Mercury position and scale matrix
-    private final float[] venusModelMatrix = new float[16]; // Venus position and scale matrix
-    private final float[] earthModelMatrix = new float[16]; // Earth position and scale matrix
-    private final float[] marsModelMatrix = new float[16]; // Mars position and scale matrix
-    private final float[] jupiterModelMatrix = new float[16]; // Jupiter position and scale matrix
-    private final float[] saturnModelMatrix = new float[16]; // Saturn position and scale matrix
-    private final float[] uranusModelMatrix = new float[16]; // Uranus position and scale matrix
-    private final float[] neptuneModelMatrix = new float[16]; // Neptune position and scale matrix
-    private final float[] moonModelMatrix = new float[16]; // Moon position and scale matrix
-
-    // Rotation matrices for all celestial bodies
-    private final float[] sunRotationMatrix = new float[16]; // Sun rotation transformation matrix
-    private final float[] mercuryRotationMatrix = new float[16]; // Mercury rotation transformation matrix
-    private final float[] venusRotationMatrix = new float[16]; // Venus rotation transformation matrix
-    private final float[] earthRotationMatrix = new float[16]; // Earth rotation transformation matrix
-    private final float[] marsRotationMatrix = new float[16]; // Mars rotation transformation matrix
-    private final float[] jupiterRotationMatrix = new float[16]; // Jupiter rotation transformation matrix
-    private final float[] saturnRotationMatrix = new float[16]; // Saturn rotation transformation matrix
-    private final float[] uranusRotationMatrix = new float[16]; // Uranus rotation transformation matrix
-    private final float[] neptuneRotationMatrix = new float[16]; // Neptune rotation transformation matrix
-    private final float[] moonRotationMatrix = new float[16]; // Moon rotation transformation matrix
-
-    // Rotation angles for all celestial bodies
+    // Private instance variables - Rotation angles
     private float sunAngle; // Current Sun rotation angle
     private float mercuryAngle; // Current Mercury rotation angle
     private float venusAngle; // Current Venus rotation angle
@@ -72,7 +134,7 @@ public class Renderer implements GLSurfaceView.Renderer {
     private float moonAngle; // Current Moon rotation angle
     private float cloudAngle; // Current cloud layer rotation angle
 
-    // Orbit angles for all planets
+    // Private instance variables - Orbit angles
     private float mercuryOrbitAngle = 0.0f; // Mercury's position in orbit around Sun
     private float venusOrbitAngle = 0.0f; // Venus's position in orbit around Sun
     private float earthOrbitAngle = 0.0f; // Earth's position in orbit around Sun
@@ -82,65 +144,27 @@ public class Renderer implements GLSurfaceView.Renderer {
     private float uranusOrbitAngle = 0.0f; // Uranus's position in orbit around Sun
     private float neptuneOrbitAngle = 0.0f; // Neptune's position in orbit around Sun
     private float moonOrbitAngle = 0.0f; // Moon's position in orbit around Earth
-    private float zoomScale = 1.0f; // Current zoom level multiplier
-    private static final float minScale = 0.1f; // Minimum allowed zoom level
-    private static final float maxScale = 5.0f; // Maximum allowed zoom level
 
-    // Orbit radii (scaled for visualization, adjusted for larger Sun - sun radius is 5.25, scaled down proportionally)
-    private static final float mercuryOrbitRadius = 7.7f; // Distance from Sun to Mercury (safe distance from sun surface)
-    private static final float venusOrbitRadius = 14.0f; // Distance from Sun to Venus
-    private static final float earthOrbitRadius = 19.25f; // Distance from Sun to Earth
-    private static final float marsOrbitRadius = 29.4f; // Distance from Sun to Mars
-    private static final float jupiterOrbitRadius = 64.05f; // Distance from Sun to Jupiter
-    private static final float saturnOrbitRadius = 115.5f; // Distance from Sun to Saturn
-    private static final float uranusOrbitRadius = 231.0f; // Distance from Sun to Uranus
-    private static final float neptuneOrbitRadius = 359.45f; // Distance from Sun to Neptune
-    private static final float moonOffset = 1.05f; // Distance from Earth to Moon
-
-    // Rotation speeds per frame
-    private static final float sunRotationSpeed = 0.01f; // Sun rotation speed per frame
-    private static final float mercuryRotationSpeed = 0.015f; // Mercury rotation speed per frame
-    private static final float venusRotationSpeed = 0.002f; // Venus rotation speed per frame (retrograde)
-    private static final float earthRotationSpeed = 0.025f; // Earth rotation speed per frame
-    private static final float marsRotationSpeed = 0.026f; // Mars rotation speed per frame
-    private static final float jupiterRotationSpeed = 0.05f; // Jupiter rotation speed per frame
-    private static final float saturnRotationSpeed = 0.04f; // Saturn rotation speed per frame
-    private static final float uranusRotationSpeed = 0.03f; // Uranus rotation speed per frame
-    private static final float neptuneRotationSpeed = 0.032f; // Neptune rotation speed per frame
-    private static final float moonRotationSpeed = 0.025f; // Moon rotation speed per frame
-    private static final float cloudRotationSpeed = 0.0375f; // Cloud layer rotation speed per frame
-
-    // Orbital speeds per frame (relative to Earth)
-    private static final float mercuryOrbitSpeed = 0.016f; // Mercury orbital speed around Sun per frame
-    private static final float venusOrbitSpeed = 0.012f; // Venus orbital speed around Sun per frame
-    private static final float earthOrbitSpeed = 0.005f; // Earth orbital speed around Sun per frame
-    private static final float marsOrbitSpeed = 0.004f; // Mars orbital speed around Sun per frame
-    private static final float jupiterOrbitSpeed = 0.001f; // Jupiter orbital speed around Sun per frame
-    private static final float saturnOrbitSpeed = 0.0005f; // Saturn orbital speed around Sun per frame
-    private static final float uranusOrbitSpeed = 0.0002f; // Uranus orbital speed around Sun per frame
-    private static final float neptuneOrbitSpeed = 0.0001f; // Neptune orbital speed around Sun per frame
-    private static final float moonOrbitSpeed = 0.0125f; // Moon orbital speed around Earth per frame
-
-    // Scale factors relative to Earth (Earth = 1.0) - scaled down proportionally
-    private static final float sunScaleFactor = 5.25f; // Sun size relative to Earth (bigger than Jupiter)
-    private static final float mercuryScaleFactor = 0.133f; // Mercury size relative to Earth
-    private static final float venusScaleFactor = 0.333f; // Venus size relative to Earth
-    private static final float earthScaleFactor = 0.35f; // Earth size (reference, scaled down)
-    private static final float marsScaleFactor = 0.186f; // Mars size relative to Earth
-    private static final float jupiterScaleFactor = 3.92f; // Jupiter size relative to Earth
-    private static final float saturnScaleFactor = 3.29f; // Saturn size relative to Earth
-    private static final float uranusScaleFactor = 1.4f; // Uranus size relative to Earth
-    private static final float neptuneScaleFactor = 1.365f; // Neptune size relative to Earth
-    private static final float moonScaleFactor = 0.095f; // Moon size relative to Earth
-    private static final float cloudAlpha = 0.5f; // Cloud layer transparency level
+    // Private instance variables - Camera
     private volatile float cameraAzimuth = (float) Math.PI; // Camera horizontal rotation angle
     private volatile float cameraElevation = 0.0f; // Camera vertical tilt angle
-    private static final float baseCameraDistance = 3.0f; // Default camera distance from target
-    private static final float minElevation = -1.4f; // Minimum camera vertical angle
-    private static final float maxElevation = 1.4f; // Maximum camera vertical angle
-    private static final float fullTurn = (float) (Math.PI * 2.0f); // Full rotation in radians
-    private static final float MIN_CAMERA_DISTANCE = 0.5f; // Minimum safe distance to prevent collision
     private volatile int cameraTarget = 3; // Current camera focus: 0=Sun, 1=Mercury, 2=Venus, 3=Earth, 4=Moon, 5=Mars, 6=Jupiter, 7=Saturn, 8=Uranus, 9=Neptune
+    private float zoomScale = 1.0f; // Current zoom level multiplier
+
+    // Private instance variables - State
+    private volatile boolean isPaused = false; // Whether all animations are paused
+    private LoadingCallback loadingCallback; // Callback to notify when assets are loaded
+
+    // Private instance variables - FPS tracking
+    private int frameCount = 0; // Number of frames rendered since last FPS calculation
+    private long lastFpsTime = System.currentTimeMillis(); // Time of last FPS calculation
+    private float currentFps = 60.0f; // Current frames per second
+
+    // Interface for loading callback
+    @FunctionalInterface
+    public interface LoadingCallback {
+        void onAssetsLoaded();
+    }
 
     // Set loading callback
     public void setLoadingCallback(LoadingCallback callback) {
@@ -172,31 +196,25 @@ public class Renderer implements GLSurfaceView.Renderer {
         return currentFps;
     }
 
-    private volatile boolean isTransitioning = false; // Whether camera is transitioning between targets
-    private volatile float transitionProgress = 0.0f; // Progress of camera transition (0.0 to 1.0)
+    // Static constants - Transitions
     private static final float TRANSITION_SPEED = 0.015f; // Speed of camera transition per frame (slower for better blur visibility)
+
+    // Final instance variables - Transitions and lighting
     private final float[] transitionStartPos = new float[3]; // Camera target position at start of transition
     private final float[] backgroundMatrix = new float[16]; // Background sphere transformation matrix
-    private float motionBlurIntensity = 0.0f; // Motion blur strength during transitions
     private final float[] lightDirection = new float[3]; // Direction of sunlight (from Sun to Earth)
     private final float[] lightColor = new float[]{1.2f, 1.1f, 0.9f}; // Color of sunlight (warm white)
-    private volatile boolean isPaused = false; // Whether all animations are paused
 
-    private int frameCount = 0; // Number of frames rendered since last FPS calculation
-    private long lastFpsTime = System.currentTimeMillis(); // Time of last FPS calculation
-    private float currentFps = 60.0f; // Current frames per second
+    // Private instance variables - Transitions
+    private volatile boolean isTransitioning = false; // Whether camera is transitioning between targets
+    private volatile float transitionProgress = 0.0f; // Progress of camera transition (0.0 to 1.0)
+    private float motionBlurIntensity = 0.0f; // Motion blur strength during transitions
 
+    // Private instance variables - Orbit rendering
     private int orbitProgram; // Shader program for drawing orbit paths
     private int orbitPositionHandler; // Shader attribute location for orbit vertex positions
     private int orbitMatrixHandler; // Shader uniform location for orbit transformation matrix
     private FloatBuffer orbitBuffer; // Buffer containing orbit path vertex data
-
-    // Loading callback interface
-    public interface LoadingCallback {
-        void onAssetsLoaded();
-    }
-
-    private LoadingCallback loadingCallback; // Callback to notify when assets are loaded
 
     // Initialize the renderer with context and set up identity matrices
     public Renderer(Context context) {
@@ -359,22 +377,22 @@ public class Renderer implements GLSurfaceView.Renderer {
         sphere = new Sphere();
         sphere.init();
 
-        sunTexture = TextureHelper.loadTexture(context, R.drawable.sun_texture);
-        mercuryTexture = TextureHelper.loadTexture(context, R.drawable.mercury_texture);
-        venusTexture = TextureHelper.loadTexture(context, R.drawable.venus_surface_texture);
-        earthTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture);
-        marsTexture = TextureHelper.loadTexture(context, R.drawable.mars_texture);
-        jupiterTexture = TextureHelper.loadTexture(context, R.drawable.jupiter_texture);
-        saturnTexture = TextureHelper.loadTexture(context, R.drawable.saturn_texture);
-        uranusTexture = TextureHelper.loadTexture(context, R.drawable.uranus_texture);
-        neptuneTexture = TextureHelper.loadTexture(context, R.drawable.neptune_texture);
-        moonTexture = TextureHelper.loadTexture(context, R.drawable.moon_texture);
-        backgroundTexture = TextureHelper.loadTexture(context, R.drawable.milky_way);
-        cloudTexture = TextureHelper.loadHighQualityTexture(context, R.drawable.earth_clouds);
-        earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.earth_specular_map);
-        earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.earth_normal_map);
-        earthNightTexture = TextureHelper.loadTexture(context, R.drawable.earth_texture_night);
-        saturnRingTexture = TextureHelper.loadTexture(context, R.drawable.saturn_ring_alpha);
+        sunTexture = TextureHelper.loadTexture(context, R.drawable.tex_sun);
+        mercuryTexture = TextureHelper.loadTexture(context, R.drawable.tex_mercury);
+        venusTexture = TextureHelper.loadTexture(context, R.drawable.tex_venus_surface);
+        earthTexture = TextureHelper.loadTexture(context, R.drawable.tex_earth);
+        marsTexture = TextureHelper.loadTexture(context, R.drawable.tex_mars);
+        jupiterTexture = TextureHelper.loadTexture(context, R.drawable.tex_jupiter);
+        saturnTexture = TextureHelper.loadTexture(context, R.drawable.tex_saturn);
+        uranusTexture = TextureHelper.loadTexture(context, R.drawable.tex_uranus);
+        neptuneTexture = TextureHelper.loadTexture(context, R.drawable.tex_neptune);
+        moonTexture = TextureHelper.loadTexture(context, R.drawable.tex_moon);
+        backgroundTexture = TextureHelper.loadTexture(context, R.drawable.tex_milky_way);
+        cloudTexture = TextureHelper.loadHighQualityTexture(context, R.drawable.tex_earth_clouds);
+        earthSpecularTexture = TextureHelper.loadTexture(context, R.drawable.map_earth_specular);
+        earthNormalTexture = TextureHelper.loadTexture(context, R.drawable.map_earth_normal);
+        earthNightTexture = TextureHelper.loadTexture(context, R.drawable.tex_earth_night);
+        saturnRingTexture = TextureHelper.loadTexture(context, R.drawable.tex_saturn_ring_alpha);
 
         initOrbitRendering();
 
@@ -876,7 +894,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, mercuryModelMatrix, 0, mercuryRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Mercury
         float[] mercuryLightDir = calculateLightDirection(mercuryPos);
         sphere.drawPlanet(mercuryTexture, mvpMatrix, tempMatrix, mercuryLightDir, lightColor);
@@ -893,7 +911,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, venusModelMatrix, 0, venusRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Venus
         float[] venusLightDir = calculateLightDirection(venusPos);
         sphere.drawPlanet(venusTexture, mvpMatrix, tempMatrix, venusLightDir, lightColor);
@@ -910,7 +928,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, marsModelMatrix, 0, marsRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Mars
         float[] marsLightDir = calculateLightDirection(marsPos);
         sphere.drawPlanet(marsTexture, mvpMatrix, tempMatrix, marsLightDir, lightColor);
@@ -927,7 +945,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, jupiterModelMatrix, 0, jupiterRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Jupiter
         float[] jupiterLightDir = calculateLightDirection(jupiterPos);
         sphere.drawPlanet(jupiterTexture, mvpMatrix, tempMatrix, jupiterLightDir, lightColor);
@@ -944,11 +962,11 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, saturnModelMatrix, 0, saturnRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Saturn
         float[] saturnLightDir = calculateLightDirection(saturnPos);
         sphere.drawPlanet(saturnTexture, mvpMatrix, tempMatrix, saturnLightDir, lightColor);
-        
+
         // Draw Saturn rings with proper tilt (26.73° axial tilt)
         float[] viewProjMatrix = new float[16];
         Matrix.multiplyMM(viewProjMatrix, 0, earthProjectionMatrix, 0, earthViewMatrix, 0);
@@ -973,7 +991,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, uranusModelMatrix, 0, uranusRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Uranus
         float[] uranusLightDir = calculateLightDirection(uranusPos);
         sphere.drawPlanet(uranusTexture, mvpMatrix, tempMatrix, uranusLightDir, lightColor);
@@ -990,7 +1008,7 @@ public class Renderer implements GLSurfaceView.Renderer {
         float[] tempMatrix = new float[16];
         Matrix.multiplyMM(tempMatrix, 0, neptuneModelMatrix, 0, neptuneRotationMatrix, 0);
         Matrix.multiplyMM(mvpMatrix, 0, mvpMatrix, 0, tempMatrix, 0);
-        
+
         // Calculate light direction for Neptune
         float[] neptuneLightDir = calculateLightDirection(neptunePos);
         sphere.drawPlanet(neptuneTexture, mvpMatrix, tempMatrix, neptuneLightDir, lightColor);

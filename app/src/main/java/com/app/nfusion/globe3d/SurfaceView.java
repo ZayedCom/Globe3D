@@ -12,40 +12,47 @@ import androidx.annotation.NonNull;
 
 public class SurfaceView extends GLSurfaceView {
 
+    // Static constants
     private static final float ORBIT_TOUCH_SCALE = 0.01f; // Sensitivity multiplier for touch-based camera rotation
     private static final float MIN_ELEVATION = -1.4f; // Minimum allowed camera vertical angle
     private static final float MAX_ELEVATION = 1.4f; // Maximum allowed camera vertical angle
     private static final float FULL_TURN = (float) (Math.PI * 2.0f); // Full rotation in radians
+    private static final float SWIPE_THRESHOLD = 100; // Minimum distance in pixels to register a swipe
+    private static final float SWIPE_VELOCITY_THRESHOLD = 100; // Minimum velocity to register a swipe
+    private static final float TAP_THRESHOLD = 20; // Maximum movement in pixels to register as a tap (not a drag)
 
+    // Private instance variables - Core components
     private com.app.nfusion.globe3d.Renderer renderer; // OpenGL renderer managing the 3D scene
     private SwipeListener swipeListener; // Listener for swipe events to hide hint
 
-    public Renderer getRenderer() {
-        return renderer;
-    }
+    // Private instance variables - Gesture detectors
+    private ScaleGestureDetector scaleGestureDetector; // Detects pinch-to-zoom gestures
+    private GestureDetector swipeGestureDetector; // Detects swipe gestures for planet switching
+
+    // Private instance variables - Touch state
+    private float lastTouchX; // X coordinate of last touch event
+    private float lastTouchY; // Y coordinate of last touch event
+    private float initialTouchX; // X coordinate of initial touch down for tap detection
+    private float initialTouchY; // Y coordinate of initial touch down for tap detection
+    private boolean isDragging = false; // Whether user is currently dragging to rotate camera
+
+    // Private instance variables - Camera
+    private float orbitAzimuth = (float) Math.PI; // Current camera horizontal rotation angle
+    private float orbitElevation = 0.0f; // Current camera vertical tilt angle
 
     // Interface for swipe events
     public interface SwipeListener {
         void onSwipeDetected();
     }
 
+    public Renderer getRenderer() {
+        return renderer;
+    }
+
     // Set swipe listener
     public void setSwipeListener(SwipeListener listener) {
         this.swipeListener = listener;
     }
-
-    private ScaleGestureDetector scaleGestureDetector; // Detects pinch-to-zoom gestures
-    private GestureDetector swipeGestureDetector; // Detects swipe gestures for planet switching
-    private float lastTouchX; // X coordinate of last touch event
-    private float lastTouchY; // Y coordinate of last touch event
-    private float initialTouchX; // X coordinate of initial touch down for tap detection
-    private float initialTouchY; // Y coordinate of initial touch down for tap detection
-    private boolean isDragging = false; // Whether user is currently dragging to rotate camera
-    private float orbitAzimuth = (float) Math.PI; // Current camera horizontal rotation angle
-    private float orbitElevation = 0.0f; // Current camera vertical tilt angle
-    private static final float SWIPE_THRESHOLD = 100; // Minimum distance in pixels to register a swipe
-    private static final float SWIPE_VELOCITY_THRESHOLD = 100; // Minimum velocity to register a swipe
-    private static final float TAP_THRESHOLD = 20; // Maximum movement in pixels to register as a tap (not a drag)
 
     // Initialize SurfaceView with default context
     public SurfaceView(Context context) {
@@ -124,7 +131,7 @@ public class SurfaceView extends GLSurfaceView {
                 float totalMovementX = e.getX(0) - initialTouchX;
                 float totalMovementY = e.getY(0) - initialTouchY;
                 float totalMovement = (float) Math.sqrt(totalMovementX * totalMovementX + totalMovementY * totalMovementY);
-                
+
                 // If movement is minimal and no swipe was detected, treat as a tap to toggle pause
                 if (totalMovement < TAP_THRESHOLD && !swipeHandled) {
                     queueEvent(() -> renderer.togglePause());
@@ -193,7 +200,7 @@ public class SurfaceView extends GLSurfaceView {
                     // Swipe right (negative diffX) cycles backward: Earth → Moon → Sun → Earth
                     boolean swipeLeft = diffX > 0;
                     queueEvent(() -> renderer.cycleCameraTarget(swipeLeft));
-                    
+
                     // Notify listener that swipe was detected (to hide hint)
                     if (swipeListener != null) {
                         post(() -> swipeListener.onSwipeDetected());

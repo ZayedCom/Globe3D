@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Random;
 
 public class ParticleView extends View {
+    // Static constants
     private static final int PARTICLE_COUNT = 50;
     private static final float MIN_SIZE = 2.0f;
     private static final float MAX_SIZE = 6.0f;
@@ -18,6 +19,7 @@ public class ParticleView extends View {
     private static final float MAX_SPEED = 2.0f;
     private static final int PARTICLE_COLOR = 0xFFFFFFFF; // White color
 
+    // Private instance variables
     private List<Particle> particles;
     private Paint paint;
     private Random random;

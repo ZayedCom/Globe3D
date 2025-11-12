@@ -34,12 +34,18 @@ import java.util.Objects;
 
 public class MainActivity extends Activity {
 
+    // Static constants
+    private static final String PREFS_NAME = "data"; // SharedPreferences name
+    private static final String KEY_LAUNCH_COUNT = "launchCount"; // Key for launch count
+    private static final int MAX_HINT_SHOWS = 3; // Maximum times to show hint
+
+    // Final instance variables
+    private final Handler handler = new Handler(Looper.getMainLooper()); // Updates UI on main thread
+    private final Map<ImageView, Drawable> originalImageDrawables = new HashMap<>(); // Store original ImageView drawables
+
+    // Private instance variables - UI components
     private View loadingScreen; // Loading screen overlay
     private ParticleView particleView; // Particle animation view
-    private LinearLayout swipeHintContainer; // Container for swipe hint message
-    private TextView tvSwipeHint; // Text view for swipe hint
-    private ImageView icArrowLeftHint; // Left arrow icon
-    private ImageView icArrowRightHint; // Right arrow icon
     private SurfaceView glSurfaceView; // OpenGL surface for 3D rendering
     private Renderer renderer; // Manages the 3D scene and rendering
     private TextView tvPlanetName; // Displays current planet name at top center
@@ -49,14 +55,14 @@ public class MainActivity extends Activity {
     private LinearLayout infoContentContainer; // Container for info dialog content
     private LinearLayout infoContentLayout; // Layout holding dynamically generated info rows
     private TextView tvPerformanceInfo; // Shows FPS, triangle count, and memory usage
-    private final Handler handler = new Handler(Looper.getMainLooper()); // Updates UI on main thread
-    private final Map<View, View> shimmerViews = new HashMap<>(); // Map to store shimmer overlay views
-    private final Map<ImageView, Drawable> originalImageDrawables = new HashMap<>(); // Store original ImageView drawables
+    private LinearLayout swipeHintContainer; // Container for swipe hint message
+    private TextView tvSwipeHint; // Text view for swipe hint
+    private ImageView icArrowLeftHint; // Left arrow icon
+    private ImageView icArrowRightHint; // Right arrow icon
+
+    // Private instance variables - state
     private boolean performanceInfoVisible = false; // Tracks if performance info is shown
     private boolean hintShownThisSession = false; // Whether hint has been shown in this session
-    private static final String PREFS_NAME = "data"; // SharedPreferences name
-    private static final String KEY_LAUNCH_COUNT = "launchCount"; // Key for launch count
-    private static final int MAX_HINT_SHOWS = 3; // Maximum times to show hint
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -255,7 +261,7 @@ public class MainActivity extends Activity {
         infoContentContainer.setLayoutParams(containerParams);
 
         // Get background drawable for info boxes
-        @SuppressLint("UseCompatLoadingForDrawables") Drawable boxBackground = getResources().getDrawable(R.drawable.info_box_background, null);
+        @SuppressLint("UseCompatLoadingForDrawables") Drawable boxBackground = getResources().getDrawable(R.drawable.bg_info_box, null);
 
         // Essential Physical Information section
         addSectionBox(getString(R.string.section_essential_physical), infoContentLayout, boxBackground);
@@ -492,7 +498,6 @@ public class MainActivity extends Activity {
         shimmerAnim.setInterpolator(new LinearInterpolator());
 
         textView.startAnimation(shimmerAnim);
-        shimmerViews.put(textView, textView); // Store reference for cleanup
     }
 
     // Apply fade in/out animation to ImageView (30% to 100% opacity)
@@ -507,7 +512,6 @@ public class MainActivity extends Activity {
         fadeAnim.setInterpolator(new LinearInterpolator());
 
         imageView.startAnimation(fadeAnim);
-        shimmerViews.put(imageView, imageView); // Store reference for cleanup
     }
 
     // Custom animation class for iOS 4 style shimmer effect
@@ -714,8 +718,6 @@ public class MainActivity extends Activity {
             iv.clearColorFilter();
             iv.invalidate();
         }
-
-        shimmerViews.remove(targetView);
     }
 
     // Increment launch count when app starts

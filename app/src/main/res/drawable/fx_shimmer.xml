@@ -8,7 +8,7 @@
     </item>
     <item>
         <bitmap
-            android:src="@drawable/shimmer_gradient"
+            android:src="@drawable/grd_shimmer"
             android:tileMode="clamp" />
     </item>
 </layer-list>
