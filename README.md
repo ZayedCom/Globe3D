@@ -46,7 +46,8 @@ To run the demo:
 • AndroidX libraries (AppCompat, Material, Activity, ConstraintLayout)
 
 # Tutorial
-The full tutorial of how to build this demo: [3D Solar System Android App Tutorial - OpenGL ES Shaders & Interactive Graphics](https://app-nfusion.net/blog/article/3d-solar-system-android-app-tutorial-opengl-es-shaders-interactive-graphics)
+The full tutorial of how to build this demo: 
+[3D Solar System Android App Tutorial - OpenGL ES Shaders & Interactive Graphics](https://app-nfusion.net/blog/article/3d-solar-system-android-app-tutorial-opengl-es-shaders-interactive-graphics)
 
 # License
 This project is licensed under the MIT License - see the LICENSE.md file for details.
