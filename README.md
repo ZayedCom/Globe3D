@@ -47,6 +47,7 @@ To run the demo:
 
 # Tutorial
 The full tutorial of how to build this demo: 
+
 [3D Solar System Android App Tutorial - OpenGL ES Shaders & Interactive Graphics](https://app-nfusion.net/blog/article/3d-solar-system-android-app-tutorial-opengl-es-shaders-interactive-graphics)
 
 # License
